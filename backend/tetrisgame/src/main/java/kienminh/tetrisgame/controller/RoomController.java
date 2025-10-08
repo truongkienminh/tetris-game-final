@@ -65,16 +65,20 @@ public class RoomController {
 
     // 🧩 Mapping Entity → DTO
     private RoomDTO mapToDTO(Room room) {
-        return new RoomDTO(
-                room.getId(),
-                room.getName(),
-                room.getHost().getUsername(),
-                room.getPlayers().stream()
-                        .map(p -> new PlayerDTO(
-                                p.getUser().getUsername(),
-                                p.getUser().equals(room.getHost()),
-                                p.getUser().getLastScore()))
-                        .collect(Collectors.toList())
-        );
+        List<PlayerDTO> players = room.getPlayers().stream()
+                .map(player -> {
+                    player.setHost(player.getUser().equals(room.getHost()));
+                    return new PlayerDTO(player);
+                })
+                .collect(Collectors.toList());
+
+        return RoomDTO.builder()
+                .id(room.getId())
+                .roomName(room.getName())                 // phải đúng với field trong class
+                .hostUsername(room.getHost().getUsername())
+                .players(players)
+                .build();
     }
+
+
 }

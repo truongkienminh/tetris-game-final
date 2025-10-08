@@ -11,19 +11,23 @@ import java.util.Arrays;
 @AllArgsConstructor
 @Builder
 public class Board {
+
     private int width = 10;
     private int height = 20;
-    private int[][] grid;      // grid[y][x], 0=empty, >0 filled (type id)
+    private int[][] grid;          // grid[y][x], 0=empty, >0 filled (type id)
     private Block currentBlock;
     private Block nextBlock;
 
+    /** Khởi tạo board và spawn block đầu tiên */
     public void init() {
         grid = new int[height][width];
         for (int i = 0; i < height; i++) Arrays.fill(grid[i], 0);
+
         nextBlock = randomBlock();
-        spawnBlock(); // sẽ set currentBlock
+        spawnBlock(); // set currentBlock
     }
 
+    /** Sinh block ngẫu nhiên */
     private Block randomBlock() {
         BlockType t = BlockType.random();
         int[][] s = Arrays.stream(t.getShape()).map(int[]::clone).toArray(int[][]::new);
@@ -31,26 +35,31 @@ public class Board {
     }
 
     /**
-     * spawn nextBlock thành currentBlock
-     * @return true nếu spawn ok, false nếu spawn collides => game over
+     * Spawn nextBlock thành currentBlock
+     * @return true nếu spawn thành công, false nếu collides → game over
      */
     public boolean spawnBlock() {
         currentBlock = nextBlock.copy();
         currentBlock.setX(width / 2 - currentBlock.getShape()[0].length / 2);
         currentBlock.setY(-currentBlock.getShape().length + 1); // allow negative y
         nextBlock = randomBlock();
+
         return !collision(currentBlock.getX(), currentBlock.getY(), currentBlock.getShape(), true);
     }
 
+    /** Di chuyển block sang trái */
     public boolean moveLeft() {
         if (currentBlock == null) return false;
         return move(currentBlock.getX() - 1, currentBlock.getY());
     }
+
+    /** Di chuyển block sang phải */
     public boolean moveRight() {
         if (currentBlock == null) return false;
         return move(currentBlock.getX() + 1, currentBlock.getY());
     }
 
+    /** Di chuyển block xuống 1 bước */
     public boolean moveDown() {
         if (currentBlock == null) return false;
         if (!move(currentBlock.getX(), currentBlock.getY() + 1)) {
@@ -60,15 +69,18 @@ public class Board {
         return true;
     }
 
+    /** Drop block xuống đáy */
     public void dropDown() {
         while (currentBlock != null && moveDown()) {}
     }
 
+    /** Xoay block hiện tại */
     public void rotateBlock() {
         if (currentBlock == null) return;
+
         currentBlock.rotate();
         if (collision(currentBlock.getX(), currentBlock.getY(), currentBlock.getShape(), true)) {
-            // wall kicks
+            // wall kicks: thử dịch trái/phải
             if (!move(currentBlock.getX() - 1, currentBlock.getY()) &&
                     !move(currentBlock.getX() + 1, currentBlock.getY())) {
                 currentBlock.rotateCounter(); // rollback
@@ -76,6 +88,7 @@ public class Board {
         }
     }
 
+    /** Kiểm tra collision và di chuyển block */
     private boolean move(int newX, int newY) {
         if (currentBlock == null) return false;
         if (!collision(newX, newY, currentBlock.getShape(), true)) {
@@ -86,12 +99,21 @@ public class Board {
         return false;
     }
 
+    /**
+     * Kiểm tra va chạm
+     * @param x vị trí x
+     * @param y vị trí y
+     * @param shape ma trận block
+     * @param allowAbove cho phép block ở phía trên board
+     */
     private boolean collision(int x, int y, int[][] shape, boolean allowAbove) {
         for (int i = 0; i < shape.length; i++) {
             for (int j = 0; j < shape[i].length; j++) {
                 if (shape[i][j] == 0) continue;
+
                 int nx = x + j;
                 int ny = y + i;
+
                 if (nx < 0 || nx >= width) return true;
                 if (ny >= height) return true;
                 if (ny < 0 && !allowAbove) return true;
@@ -101,10 +123,13 @@ public class Board {
         return false;
     }
 
+    /** Lock block vào grid và spawn block mới */
     private void lockBlock() {
         if (currentBlock == null) return;
+
         int[][] shape = currentBlock.getShape();
         int id = currentBlock.getType().ordinal() + 1;
+
         for (int i = 0; i < shape.length; i++) {
             for (int j = 0; j < shape[i].length; j++) {
                 if (shape[i][j] != 0) {
@@ -114,13 +139,19 @@ public class Board {
                 }
             }
         }
+
         clearLines();
-        currentBlock = null;
-        spawnBlock(); // luôn spawn block mới
+
+        boolean spawnOk = spawnBlock();
+        if (!spawnOk) {
+            currentBlock = null; // game over
+        }
     }
 
+    /** Xóa các dòng đầy */
     public int clearLines() {
         int linesCleared = 0;
+
         for (int row = height - 1; row >= 0; row--) {
             boolean full = true;
             for (int col = 0; col < width; col++) {
@@ -135,9 +166,11 @@ public class Board {
                 row++; // re-check row after cascade
             }
         }
+
         return linesCleared;
     }
 
+    /** Snapshot để broadcast realtime */
     public int[][] getBoardSnapshot() {
         int[][] copy = new int[height][width];
         for (int i = 0; i < height; i++) copy[i] = Arrays.copyOf(grid[i], width);
@@ -145,6 +178,7 @@ public class Board {
         if (currentBlock != null) {
             int[][] shape = currentBlock.getShape();
             int id = currentBlock.getType().ordinal() + 1;
+
             for (int i = 0; i < shape.length; i++) {
                 for (int j = 0; j < shape[i].length; j++) {
                     if (shape[i][j] != 0) {
@@ -155,7 +189,17 @@ public class Board {
                 }
             }
         }
+
         return copy;
     }
-}
 
+    /** Kiểm tra còn block đang chơi */
+    public boolean hasCurrentBlock() {
+        return currentBlock != null;
+    }
+
+    /** Lấy bản copy của nextBlock (preview cho frontend) */
+    public Block getNextBlockCopy() {
+        return nextBlock != null ? nextBlock.copy() : null;
+    }
+}

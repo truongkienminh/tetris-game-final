@@ -22,11 +22,12 @@ import java.util.Set;
 
         private String name;
 
-        @OneToOne
+        @OneToOne(cascade = CascadeType.ALL)
         private User host;
 
         @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true)
-        private Set<Player> players = new HashSet<>();
+        @Builder.Default
+        private Set<Player> players = new HashSet<>(); // đảm bảo luôn không null
 
         // tiện ích thêm/xóa player
         public void addPlayer(Player player) {

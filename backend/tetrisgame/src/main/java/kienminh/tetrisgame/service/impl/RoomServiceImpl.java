@@ -4,13 +4,17 @@ import kienminh.tetrisgame.dto.PlayerDTO;
 import kienminh.tetrisgame.model.entity.Player;
 import kienminh.tetrisgame.model.entity.Room;
 import kienminh.tetrisgame.model.entity.User;
+import kienminh.tetrisgame.model.game.GameState;
 import kienminh.tetrisgame.repository.PlayerRepository;
 import kienminh.tetrisgame.repository.RoomRepository;
 import kienminh.tetrisgame.service.interfaces.RoomService;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -19,32 +23,44 @@ public class RoomServiceImpl implements RoomService {
 
     private final RoomRepository roomRepository;
     private final PlayerRepository playerRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    public RoomServiceImpl(RoomRepository roomRepository, PlayerRepository playerRepository) {
+    // Quản lý game loop từng phòng
+    private final Map<Long, ScheduledFuture<?>> gameLoops = new ConcurrentHashMap<>();
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(10);
+
+    public RoomServiceImpl(RoomRepository roomRepository,
+                           PlayerRepository playerRepository,
+                           SimpMessagingTemplate messagingTemplate) {
         this.roomRepository = roomRepository;
         this.playerRepository = playerRepository;
+        this.messagingTemplate = messagingTemplate;
     }
 
+    // ===========================
+    // CREATE / JOIN / LEAVE ROOM
+    // ===========================
     @Override
     public Room createRoom(User host) {
-        // 1️⃣ Tạo room
+        // Tạo room mới
         Room room = Room.builder()
                 .name(host.getUsername() + "'s Room")
                 .host(host)
                 .build();
 
-        // 2️⃣ Khởi tạo player cho host
-        Player hostPlayer = Player.builder()
-                .user(host)
-                .online(true) // host mặc định online   ư
-                .room(room)   // gán phòng
-                .build();
+        // Kiểm tra Player đã tồn tại chưa
+        Player hostPlayer = playerRepository.findByUser(host)
+                .orElseGet(() -> Player.builder()
+                        .user(host)
+                        .online(true)
+                        .host(true)   // đánh dấu là host
+                        .build()
+                );
 
-        // 3️⃣ Thêm host player vào room
-        room.getPlayers().add(hostPlayer);
+        // Liên kết player với room
+        room.addPlayer(hostPlayer);
 
-        // 4️⃣ Lưu cả room và player
-        playerRepository.save(hostPlayer);
+        // Lưu room; cascade ALL sẽ tự lưu hostPlayer nếu mới
         return roomRepository.save(room);
     }
 
@@ -56,9 +72,7 @@ public class RoomServiceImpl implements RoomService {
         Player player = playerRepository.findById(playerId)
                 .orElseThrow(() -> new IllegalArgumentException("Player not found"));
 
-        // Sử dụng method tiện ích trong Room/Player → đồng bộ 2 chiều
         room.addPlayer(player);
-
         return roomRepository.save(room);
     }
 
@@ -69,10 +83,13 @@ public class RoomServiceImpl implements RoomService {
         Player player = playerRepository.findById(playerId)
                 .orElseThrow(() -> new IllegalArgumentException("Player not found"));
 
-        // Sử dụng method tiện ích → đồng bộ quan hệ hai chiều
         room.removePlayer(player);
-
         roomRepository.save(room);
+
+        // Dừng game loop nếu phòng trống
+        if (room.getPlayers().isEmpty()) {
+            stopGameLoop(roomId);
+        }
     }
 
     @Override
@@ -81,13 +98,79 @@ public class RoomServiceImpl implements RoomService {
                 .orElseThrow(() -> new IllegalArgumentException("Room not found"));
 
         return room.getPlayers().stream()
-                .map(p -> new PlayerDTO(
-                        p.getUser().getUsername(),
-                        p.isOnline(),
-                        p.getUser().getLastScore()
-                ))
+                .map(PlayerDTO::new) // dùng constructor PlayerDTO(Player player)
                 .collect(Collectors.toList());
     }
 
-}
 
+    // ===========================
+    // GAME LOOP / START / TICK
+    // ===========================
+    public void startGame(Room room) {
+        // Khởi tạo game state cho từng player
+        for (Player player : room.getPlayers()) {
+            GameState state = new GameState(); // board mới, score 0
+            player.setGameState(state);
+            playerRepository.save(player);
+        }
+
+        // Bắt đầu scheduled game loop cho phòng
+        ScheduledFuture<?> loop = scheduler.scheduleAtFixedRate(
+                () -> tick(room.getId()),
+                0, 500, TimeUnit.MILLISECONDS // tick mỗi 500ms
+        );
+        gameLoops.put(room.getId(), loop);
+    }
+
+    private void tick(Long roomId) {
+        Room room = roomRepository.findById(roomId).orElseThrow();
+
+        for (Player player : room.getPlayers()) {
+            GameState state = player.getGameState();
+            if (state.isGameOver()) continue;
+
+            synchronized (player) { // thread-safe
+                state.tick(); // logic rơi piece, clear line
+                player.setGameState(state);
+                playerRepository.save(player);
+            }
+
+            // Broadcast update
+            messagingTemplate.convertAndSend("/topic/room/" + roomId,
+                    Map.of(
+                            "type", "UPDATE",
+                            "playerId", player.getId(),
+                            "username", player.getUser().getUsername(),
+                            "roomId", roomId,
+                            "payload", state
+                    )
+            );
+
+            if (state.isGameOver()) {
+                messagingTemplate.convertAndSend("/topic/room/" + roomId,
+                        Map.of(
+                                "type", "GAME_OVER",
+                                "playerId", player.getId(),
+                                "username", player.getUser().getUsername(),
+                                "roomId", roomId
+                        )
+                );
+            }
+        }
+    }
+
+    private void stopGameLoop(Long roomId) {
+        ScheduledFuture<?> loop = gameLoops.remove(roomId);
+        if (loop != null) loop.cancel(true);
+    }
+
+    // ===========================
+    // UTILITY
+    // ===========================
+    public Room findRoomByUsername(String username) {
+        return roomRepository.findAll().stream()
+                .filter(r -> r.getPlayers().stream().anyMatch(p -> p.getUser().getUsername().equals(username)))
+                .findFirst().orElse(null);
+    }
+
+}

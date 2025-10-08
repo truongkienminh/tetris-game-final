@@ -1,53 +1,61 @@
 package kienminh.tetrisgame.model.game;
 
 import kienminh.tetrisgame.model.game.enums.GameStatus;
-import lombok.*;
+import lombok.Getter;
+import lombok.Setter;
 
 @Getter
 @Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 public class GameState {
+
     private Board board;
     private int score;
     private int level;
     private GameStatus status;
 
-    public void start() {
-        board = new Board();
-        board.init();
-        score = 0;
-        level = 1;
-        status = GameStatus.PLAYING;
+    public GameState() {
+        start();
     }
 
-    public void reset() { start(); }
+    public void start() {
+        this.board = new Board();
+        board.init();
+        this.score = 0;
+        this.level = 1;
+        this.status = GameStatus.PLAYING;
+    }
 
-    public void moveLeft() {
-        ensurePlaying();
+    public void reset() {
+        start();
+    }
+
+    public synchronized void moveLeft() {
+        if (!isPlaying()) return;
         board.moveLeft();
     }
 
-    public void moveRight() {
-        ensurePlaying();
+    public synchronized void moveRight() {
+        if (!isPlaying()) return;
         board.moveRight();
     }
 
-    public void rotate() {
-        ensurePlaying();
+    public synchronized void rotate() {
+        if (!isPlaying()) return;
         board.rotateBlock();
     }
 
-    public void drop() {
-        ensurePlaying();
+    public synchronized void drop() {
+        if (!isPlaying()) return;
         board.dropDown();
         score += 10;
         levelUpCheck();
+        checkSpawnOrGameOver();
     }
 
-    public void tick() {
-        ensurePlaying();
+    /** Tick tự động từ game loop */
+    public synchronized void tick() {
+        if (!isPlaying()) return;
+
         boolean moved = board.moveDown();
         if (!moved) {
             int lines = board.clearLines();
@@ -55,10 +63,14 @@ public class GameState {
                 score += computeScoreForLines(lines);
                 levelUpCheck();
             }
-            if (board.getCurrentBlock() == null) { // nếu block cuối đã lock
-                boolean ok = board.spawnBlock();
-                if (!ok) status = GameStatus.GAME_OVER;
-            }
+            checkSpawnOrGameOver();
+        }
+    }
+
+    private void checkSpawnOrGameOver() {
+        if (board.getCurrentBlock() == null) {
+            boolean ok = board.spawnBlock();
+            if (!ok) status = GameStatus.GAME_OVER;
         }
     }
 
@@ -77,8 +89,11 @@ public class GameState {
         if (newLevel > level) level = newLevel;
     }
 
-    private void ensurePlaying() {
-        if (status != GameStatus.PLAYING) throw new IllegalStateException("Game not playing");
+    public boolean isPlaying() {
+        return status == GameStatus.PLAYING;
+    }
+
+    public boolean isGameOver() {
+        return status == GameStatus.GAME_OVER;
     }
 }
-

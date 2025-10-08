@@ -16,7 +16,7 @@ public class Block {
     private int x;
     private int y;
 
-    /** rotate clockwise */
+    /** Rotate clockwise */
     public void rotate() {
         int rows = shape.length;
         int cols = shape[0].length;
@@ -27,11 +27,12 @@ public class Block {
         shape = rotated;
     }
 
+    /** Rotate counter-clockwise */
     public void rotateCounter() {
-        // 3 x rotate clockwise = rotate counter-clockwise
         for (int i = 0; i < 3; i++) rotate();
     }
 
+    /** Deep copy block */
     public Block copy() {
         int[][] s = Arrays.stream(shape).map(int[]::clone).toArray(int[][]::new);
         return Block.builder().type(type).shape(s).x(x).y(y).build();

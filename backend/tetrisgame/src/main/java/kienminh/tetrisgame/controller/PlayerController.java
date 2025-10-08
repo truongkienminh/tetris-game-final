@@ -4,6 +4,7 @@ import kienminh.tetrisgame.dto.PlayerDTO;
 
 import kienminh.tetrisgame.model.entity.Player;
 import kienminh.tetrisgame.model.entity.User;
+import kienminh.tetrisgame.repository.PlayerRepository;
 import kienminh.tetrisgame.service.interfaces.PlayerService;
 import kienminh.tetrisgame.service.interfaces.AuthService;
 import org.springframework.http.ResponseEntity;
@@ -15,10 +16,12 @@ public class PlayerController {
 
     private final PlayerService playerService;
     private final AuthService authService;
+    private final PlayerRepository playerRepository;
 
-    public PlayerController(PlayerService playerService, AuthService authService) {
+    public PlayerController(PlayerService playerService, AuthService authService, PlayerRepository playerRepository) {
         this.playerService = playerService;
         this.authService = authService;
+        this.playerRepository = playerRepository;
     }
 
     /**
@@ -26,17 +29,23 @@ public class PlayerController {
      */
     @PostMapping("/create")
     public ResponseEntity<PlayerDTO> createPlayer() {
-        User currentUser = authService.getAuthenticatedUser(); // lấy user hiện tại từ JWT
+        // Lấy user hiện tại từ JWT
+        User currentUser = authService.getAuthenticatedUser();
+
+        // Tạo player mới hoặc lấy player đã tồn tại
         Player player = playerService.createPlayer(currentUser);
 
-        PlayerDTO dto = new PlayerDTO(
-                currentUser.getUsername(),
-                false,  // mặc định chưa phải host
-                0       // điểm ban đầu
-        );
+        // Đảm bảo player vừa tạo đang online
+        player.setOnline(true);
+        player.setHost(false); // mặc định chưa phải host
+        playerRepository.save(player); // lưu player mới hoặc cập nhật
+
+        // Chuyển thành DTO mới
+        PlayerDTO dto = new PlayerDTO(player);
 
         return ResponseEntity.ok(dto);
     }
+
 
     /**
      * Cập nhật trạng thái online/offline của player

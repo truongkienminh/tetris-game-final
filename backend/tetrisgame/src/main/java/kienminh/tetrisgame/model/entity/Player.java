@@ -6,7 +6,6 @@ import lombok.*;
 
 import java.util.HashSet;
 
-// ===================== Player =====================
 @Entity
 @Table(name = "players")
 @Getter
@@ -21,23 +20,28 @@ public class Player {
     private Long id;
 
     @OneToOne(optional = false)
+    @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
-    @Transient // trạng thái game không lưu DB
+    @Transient
     private GameState gameState;
 
     @ManyToOne
     @JoinColumn(name = "room_id")
     private Room room;
 
-    private boolean online;
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean online = false;
 
-    // tiện ích thêm vào phòng
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean host = false;
+
+    // Utility methods
     public void joinRoom(Room room) {
         this.room = room;
-        if (room.getPlayers() == null) {
-            room.setPlayers(new HashSet<>());
-        }
+        if (room.getPlayers() == null) room.setPlayers(new HashSet<>());
         room.getPlayers().add(this);
     }
 
@@ -48,4 +52,3 @@ public class Player {
         this.room = null;
     }
 }
-
