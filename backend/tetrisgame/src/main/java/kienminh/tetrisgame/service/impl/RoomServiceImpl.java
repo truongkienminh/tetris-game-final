@@ -42,27 +42,36 @@ public class RoomServiceImpl implements RoomService {
     // ===========================
     @Override
     public Room createRoom(User host) {
-        // Tạo room mới
         Room room = Room.builder()
                 .name(host.getUsername() + "'s Room")
                 .host(host)
                 .build();
 
-        // Kiểm tra Player đã tồn tại chưa
-        Player hostPlayer = playerRepository.findByUser(host)
-                .orElseGet(() -> Player.builder()
-                        .user(host)
-                        .online(true)
-                        .host(true)   // đánh dấu là host
-                        .build()
-                );
+        // Kiểm tra player có sẵn hay không
+        Player hostPlayer = playerRepository.findByUser(host).orElse(null);
 
-        // Liên kết player với room
-        room.addPlayer(hostPlayer);
+        if (hostPlayer == null) {
+            hostPlayer = Player.builder()
+                    .user(host)
+                    .online(true)
+                    .host(true)
+                    .room(room)
+                    .build();
+        } else {
+            // reset trạng thái nếu player đã tồn tại
+            hostPlayer.setOnline(true);
+            hostPlayer.setHost(true);
+            hostPlayer.leaveRoom();
+            hostPlayer.setRoom(room);
+        }
 
-        // Lưu room; cascade ALL sẽ tự lưu hostPlayer nếu mới
-        return roomRepository.save(room);
+        room.getPlayers().add(hostPlayer);
+        roomRepository.save(room);
+        playerRepository.save(hostPlayer);
+
+        return room;
     }
+
 
 
     @Override
@@ -72,9 +81,18 @@ public class RoomServiceImpl implements RoomService {
         Player player = playerRepository.findById(playerId)
                 .orElseThrow(() -> new IllegalArgumentException("Player not found"));
 
+        // Nếu player đã ở đúng phòng thì bỏ qua
+        if (room.equals(player.getRoom())) return room;
+
+        player.leaveRoom();
         room.addPlayer(player);
+        player.setOnline(true);
+        player.setHost(false);
+
+        playerRepository.save(player);
         return roomRepository.save(room);
     }
+
 
     @Override
     public void leaveRoom(Long roomId, Long playerId) {
@@ -84,13 +102,29 @@ public class RoomServiceImpl implements RoomService {
                 .orElseThrow(() -> new IllegalArgumentException("Player not found"));
 
         room.removePlayer(player);
-        roomRepository.save(room);
+        player.setOnline(false);
+        player.setRoom(null);
+        playerRepository.save(player);
 
-        // Dừng game loop nếu phòng trống
-        if (room.getPlayers().isEmpty()) {
-            stopGameLoop(roomId);
+        // Nếu host rời phòng
+        if (player.isHost()) {
+            if (!room.getPlayers().isEmpty()) {
+                // Chọn player đầu tiên làm host mới
+                Player newHost = room.getPlayers().iterator().next();
+                newHost.setHost(true);
+                playerRepository.save(newHost);
+                room.setHost(newHost.getUser());
+            } else {
+                // Không còn ai → xóa phòng
+                stopGameLoop(roomId);
+                roomRepository.delete(room);
+                return;
+            }
         }
+
+        roomRepository.save(room);
     }
+
 
     @Override
     public List<PlayerDTO> getPlayerDTOsInRoom(Long roomId) {
@@ -107,20 +141,19 @@ public class RoomServiceImpl implements RoomService {
     // GAME LOOP / START / TICK
     // ===========================
     public void startGame(Room room) {
-        // Khởi tạo game state cho từng player
-        for (Player player : room.getPlayers()) {
-            GameState state = new GameState(); // board mới, score 0
-            player.setGameState(state);
-            playerRepository.save(player);
-        }
+        if (gameLoops.containsKey(room.getId())) return; // đã chạy
 
-        // Bắt đầu scheduled game loop cho phòng
+        for (Player player : room.getPlayers()) {
+            GameState state = new GameState();
+            player.setGameState(state);
+        }
+        playerRepository.saveAll(room.getPlayers());
+
         ScheduledFuture<?> loop = scheduler.scheduleAtFixedRate(
-                () -> tick(room.getId()),
-                0, 500, TimeUnit.MILLISECONDS // tick mỗi 500ms
-        );
+                () -> tick(room.getId()), 0, 500, TimeUnit.MILLISECONDS);
         gameLoops.put(room.getId(), loop);
     }
+
 
     private void tick(Long roomId) {
         Room room = roomRepository.findById(roomId).orElseThrow();
