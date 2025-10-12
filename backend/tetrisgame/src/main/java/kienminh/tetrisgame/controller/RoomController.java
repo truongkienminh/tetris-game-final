@@ -44,6 +44,7 @@ public class RoomController {
     // 🟢 Người chơi tham gia phòng
     @PostMapping("/{roomId}/join/{playerId}")
     public ResponseEntity<RoomDTO> joinRoom(@PathVariable Long roomId, @PathVariable Long playerId) {
+        System.out.println("JOIN SUCCESSFULLY: ");
         Room room = roomService.joinRoom(roomId, playerId);
         RoomDTO dto = mapToDTO(room);
         return ResponseEntity.ok(dto);

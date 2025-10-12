@@ -40,5 +40,11 @@ public class PlayerServiceImpl implements PlayerService {
             playerRepository.save(player); // chỉ save khi trạng thái thay đổi
         }
     }
+
+    @Override
+    public Player getCurrentPlayer(User user) {
+        return playerRepository.findByUser(user)
+                .orElseGet(() -> createPlayer(user));
+    }
 }
 

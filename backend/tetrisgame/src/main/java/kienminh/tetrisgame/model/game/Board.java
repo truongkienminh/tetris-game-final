@@ -44,6 +44,7 @@ public class Board {
         currentBlock.setY(-currentBlock.getShape().length + 1); // allow negative y
         nextBlock = randomBlock();
 
+        // nếu va chạm ngay khi spawn → game over
         return !collision(currentBlock.getX(), currentBlock.getY(), currentBlock.getShape(), true);
     }
 
@@ -71,7 +72,9 @@ public class Board {
 
     /** Drop block xuống đáy */
     public void dropDown() {
-        while (currentBlock != null && moveDown()) {}
+        while (currentBlock != null && moveDown()) {
+            // loop until locked
+        }
     }
 
     /** Xoay block hiện tại */
@@ -123,7 +126,7 @@ public class Board {
         return false;
     }
 
-    /** Lock block vào grid và spawn block mới */
+    /** Ghi block vào grid khi chạm đáy */
     private void lockBlock() {
         if (currentBlock == null) return;
 
@@ -135,17 +138,15 @@ public class Board {
                 if (shape[i][j] != 0) {
                     int x = currentBlock.getX() + j;
                     int y = currentBlock.getY() + i;
-                    if (y >= 0 && y < height && x >= 0 && x < width) grid[y][x] = id;
+                    if (y >= 0 && y < height && x >= 0 && x < width) {
+                        grid[y][x] = id;
+                    }
                 }
             }
         }
 
-        clearLines();
-
-        boolean spawnOk = spawnBlock();
-        if (!spawnOk) {
-            currentBlock = null; // game over
-        }
+        // Không clearLines() và không spawn ở đây — để GameState xử lý tiếp
+        currentBlock = null;
     }
 
     /** Xóa các dòng đầy */
@@ -170,7 +171,7 @@ public class Board {
         return linesCleared;
     }
 
-    /** Snapshot để broadcast realtime */
+    /** Snapshot để render frontend */
     public int[][] getBoardSnapshot() {
         int[][] copy = new int[height][width];
         for (int i = 0; i < height; i++) copy[i] = Arrays.copyOf(grid[i], width);

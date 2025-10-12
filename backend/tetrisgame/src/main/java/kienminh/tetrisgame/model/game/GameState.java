@@ -46,10 +46,23 @@ public class GameState {
 
     public synchronized void drop() {
         if (!isPlaying()) return;
+        // drop toàn bộ xuống đáy — lockBlock() sẽ được gọi trong moveDown()
         board.dropDown();
+
+        // Sau khi lock: clear lines, cộng điểm +10 cho drop, kiểm tra level, spawn hoặc game over
+        int lines = board.clearLines();
+        if (lines > 0) {
+            score += computeScoreForLines(lines);
+        }
+
+        // cộng điểm cố định cho drop (theo yêu cầu)
         score += 10;
+
         levelUpCheck();
-        checkSpawnOrGameOver();
+
+        // spawn hoặc game over
+        boolean ok = board.spawnBlock();
+        if (!ok) status = GameStatus.GAME_OVER;
     }
 
     /** Tick tự động từ game loop */
@@ -58,17 +71,13 @@ public class GameState {
 
         boolean moved = board.moveDown();
         if (!moved) {
+            // Block đã lock bên trong moveDown()
             int lines = board.clearLines();
             if (lines > 0) {
                 score += computeScoreForLines(lines);
                 levelUpCheck();
             }
-            checkSpawnOrGameOver();
-        }
-    }
 
-    private void checkSpawnOrGameOver() {
-        if (board.getCurrentBlock() == null) {
             boolean ok = board.spawnBlock();
             if (!ok) status = GameStatus.GAME_OVER;
         }

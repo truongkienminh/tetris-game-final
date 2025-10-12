@@ -6,4 +6,5 @@ import kienminh.tetrisgame.model.entity.User;
 public interface PlayerService {
     Player createPlayer(User user);
     void setOnline(Long playerId, boolean online);
+    Player getCurrentPlayer(User user);
 }

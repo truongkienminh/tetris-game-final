@@ -1,7 +1,6 @@
 package kienminh.tetrisgame.controller;
 
 import kienminh.tetrisgame.dto.PlayerDTO;
-
 import kienminh.tetrisgame.model.entity.Player;
 import kienminh.tetrisgame.model.entity.User;
 import kienminh.tetrisgame.repository.PlayerRepository;
@@ -18,37 +17,31 @@ public class PlayerController {
     private final AuthService authService;
     private final PlayerRepository playerRepository;
 
-    public PlayerController(PlayerService playerService, AuthService authService, PlayerRepository playerRepository) {
+    public PlayerController(PlayerService playerService,
+                            AuthService authService,
+                            PlayerRepository playerRepository) {
         this.playerService = playerService;
         this.authService = authService;
         this.playerRepository = playerRepository;
     }
 
     /**
-     * Tạo player mới hoặc lấy player hiện có cho user đang đăng nhập
+     * 🔹 Tạo player mới hoặc lấy player hiện có cho user đang đăng nhập
      */
     @PostMapping("/create")
     public ResponseEntity<PlayerDTO> createPlayer() {
-        // Lấy user hiện tại từ JWT
         User currentUser = authService.getAuthenticatedUser();
-
-        // Tạo player mới hoặc lấy player đã tồn tại
         Player player = playerService.createPlayer(currentUser);
 
-        // Đảm bảo player vừa tạo đang online
         player.setOnline(true);
-        player.setHost(false); // mặc định chưa phải host
-        playerRepository.save(player); // lưu player mới hoặc cập nhật
+        player.setHost(false);
+        playerRepository.save(player);
 
-        // Chuyển thành DTO mới
-        PlayerDTO dto = new PlayerDTO(player);
-
-        return ResponseEntity.ok(dto);
+        return ResponseEntity.ok(new PlayerDTO(player));
     }
 
-
     /**
-     * Cập nhật trạng thái online/offline của player
+     * 🔹 Cập nhật trạng thái online/offline của player
      */
     @PutMapping("/{playerId}/status")
     public ResponseEntity<String> updateOnlineStatus(
@@ -59,4 +52,13 @@ public class PlayerController {
         return ResponseEntity.ok("Player " + playerId + " is now " + (online ? "online" : "offline"));
     }
 
+    /**
+     * 🔹 Lấy player theo user đang đăng nhập (qua token JWT)
+     */
+    @GetMapping("/me")
+    public ResponseEntity<PlayerDTO> getCurrentPlayer() {
+        User currentUser = authService.getAuthenticatedUser(); // ✅ lấy user từ token
+        Player player = playerService.getCurrentPlayer(currentUser); // tự tạo nếu chưa có
+        return ResponseEntity.ok(new PlayerDTO(player));
+    }
 }
