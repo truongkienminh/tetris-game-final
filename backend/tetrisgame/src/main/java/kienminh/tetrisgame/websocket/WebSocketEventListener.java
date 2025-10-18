@@ -1,8 +1,10 @@
 package kienminh.tetrisgame.websocket;
 
+import kienminh.tetrisgame.dto.PlayerDTO;
 import kienminh.tetrisgame.model.entity.Player;
 import kienminh.tetrisgame.model.entity.Room;
-import kienminh.tetrisgame.service.impl.RoomServiceImpl;
+import kienminh.tetrisgame.repository.PlayerRepository;
+import kienminh.tetrisgame.service.interfaces.RoomService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -15,7 +17,8 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 @RequiredArgsConstructor
 public class WebSocketEventListener {
 
-    private final RoomServiceImpl roomService;
+    private final RoomService roomService;
+    private final PlayerRepository playerRepository;
     private final SimpMessagingTemplate messagingTemplate;
 
     @EventListener
@@ -25,23 +28,27 @@ public class WebSocketEventListener {
 
         if (auth instanceof UsernamePasswordAuthenticationToken token) {
             String username = token.getName();
-            Room room = roomService.findRoomByUsername(username);
-            if (room != null) {
-                Player player = room.getPlayers().stream()
-                        .filter(p -> p.getUser().getUsername().equals(username))
-                        .findFirst().orElse(null);
-                if (player != null) {
-                    roomService.leaveRoom(room.getId(), player.getId());
 
-                    WebSocketEvent wsEvent = WebSocketEvent.builder()
-                            .type("LEAVE")
-                            .roomId(room.getId())
-                            .playerId(player.getId())
-                            .username(username)
-                            .build();
+            // 🔹 Tìm player theo username
+            Player player = playerRepository.findByUser_Username(username)
+                    .orElse(null);
 
-                    messagingTemplate.convertAndSend("/topic/room/" + room.getId(), wsEvent);
-                }
+            if (player != null && player.getRoom() != null) {
+                Room room = player.getRoom();
+
+                // 🔹 Xử lý rời phòng qua service (service sẽ cập nhật DB và xóa phòng nếu trống)
+                roomService.leaveRoom(room.getId(), player);
+
+                // 🔹 Gửi sự kiện LEAVE qua WebSocket
+                WebSocketEvent wsEvent = WebSocketEvent.builder()
+                        .type("LEAVE")
+                        .roomId(room.getId())
+                        .playerId(player.getId())
+                        .username(username)
+                        .payload(new PlayerDTO(player))
+                        .build();
+
+                messagingTemplate.convertAndSend("/topic/room/" + room.getId(), wsEvent);
             }
         }
     }

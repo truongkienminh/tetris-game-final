@@ -1,85 +1,91 @@
 package kienminh.tetrisgame.controller;
 
-import kienminh.tetrisgame.dto.PlayerDTO;
 import kienminh.tetrisgame.dto.RoomDTO;
 import kienminh.tetrisgame.model.entity.Player;
-import kienminh.tetrisgame.model.entity.Room;
 import kienminh.tetrisgame.model.entity.User;
-import kienminh.tetrisgame.service.interfaces.AuthService;
-import kienminh.tetrisgame.service.interfaces.RoomService;
-import kienminh.tetrisgame.service.interfaces.PlayerService;
+import kienminh.tetrisgame.service.impl.PlayerServiceImpl;
+import kienminh.tetrisgame.service.impl.RoomServiceImpl;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/rooms")
+@RequiredArgsConstructor
 public class RoomController {
 
-    private final RoomService roomService;
-    private final PlayerService playerService;
-    private final AuthService authService;
+    private final RoomServiceImpl roomService;
+    private final PlayerServiceImpl playerService;
 
-    public RoomController(RoomService roomService,
-                          PlayerService playerService,
-                          AuthService authService) {
-        this.roomService = roomService;
-        this.playerService = playerService;
-        this.authService = authService;
-    }
-
-    // 🟢 Tạo phòng (người đăng nhập là host)
+    /**
+     * 🔹 Tạo phòng mới (JWT xác thực)
+     */
     @PostMapping("/create")
-    public ResponseEntity<RoomDTO> createRoom() {
-        User host = authService.getAuthenticatedUser();
-        if (host == null) return ResponseEntity.status(401).build();
-
-        Room room = roomService.createRoom(host);
-        RoomDTO dto = mapToDTO(room);
-        return ResponseEntity.ok(dto);
+    public ResponseEntity<RoomDTO> createRoom(
+            @RequestParam String roomName,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        RoomDTO room = roomService.createRoom(roomName, currentUser);
+        return ResponseEntity.ok(room);
     }
 
-    // 🟢 Người chơi tham gia phòng
-    @PostMapping("/{roomId}/join/{playerId}")
-    public ResponseEntity<RoomDTO> joinRoom(@PathVariable Long roomId, @PathVariable Long playerId) {
-        System.out.println("JOIN SUCCESSFULLY: ");
-        Room room = roomService.joinRoom(roomId, playerId);
-        RoomDTO dto = mapToDTO(room);
-        return ResponseEntity.ok(dto);
+    /**
+     * 🔹 Người chơi tham gia phòng
+     */
+    @PostMapping("/{roomId}/join")
+    public ResponseEntity<RoomDTO> joinRoom(
+            @PathVariable Long roomId,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        Player player = playerService.getCurrentPlayer(currentUser);
+        RoomDTO updatedRoom = roomService.joinRoom(roomId, player);
+        return ResponseEntity.ok(updatedRoom);
     }
 
-    // 🟠 Người chơi rời khỏi phòng
-    @PostMapping("/{roomId}/leave/{playerId}")
-    public ResponseEntity<Void> leaveRoom(@PathVariable Long roomId, @PathVariable Long playerId) {
-        roomService.leaveRoom(roomId, playerId);
-        return ResponseEntity.ok().build();
+    /**
+     * 🔹 Người chơi rời phòng
+     */
+    @PostMapping("/{roomId}/leave")
+    public ResponseEntity<String> leaveRoom(
+            @PathVariable Long roomId,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        // Lấy Player hiện tại của người dùng
+        Player player = playerService.getCurrentPlayer(currentUser);
+
+        // Gọi service để rời phòng
+        roomService.leaveRoom(roomId, player);
+        return ResponseEntity.ok("Player " + currentUser.getUsername() + " left room " + roomId);
     }
 
-    // Lấy danh sách PlayerDTO trong phòng
-    @GetMapping("/{roomId}/players")
-    public ResponseEntity<List<PlayerDTO>> getPlayersInRoom(@PathVariable Long roomId) {
-        List<PlayerDTO> players = roomService.getPlayerDTOsInRoom(roomId);
-        return ResponseEntity.ok(players);
+    /**
+     * 🔹 Xóa phòng (chỉ host hoặc admin)
+     */
+    @DeleteMapping("/{roomId}")
+    public ResponseEntity<String> deleteRoom(@PathVariable Long roomId) {
+        roomService.deleteRoom(roomId);
+        return ResponseEntity.ok("Room deleted successfully");
     }
 
-    // 🧩 Mapping Entity → DTO
-    private RoomDTO mapToDTO(Room room) {
-        List<PlayerDTO> players = room.getPlayers().stream()
-                .map(player -> {
-                    player.setHost(player.getUser().equals(room.getHost()));
-                    return new PlayerDTO(player);
-                })
-                .collect(Collectors.toList());
-
-        return RoomDTO.builder()
-                .id(room.getId())
-                .roomName(room.getName())                 // phải đúng với field trong class
-                .hostUsername(room.getHost().getUsername())
-                .players(players)
-                .build();
+    /**
+     * 🔹 Lấy danh sách tất cả phòng
+     */
+    @GetMapping
+    public ResponseEntity<List<RoomDTO>> getAllRooms() {
+        List<RoomDTO> rooms = roomService.getAllRooms();
+        return ResponseEntity.ok(rooms);
     }
 
-
+    /**
+     * 🔹 Lấy thông tin chi tiết 1 phòng
+     */
+    @GetMapping("/{roomId}")
+    public ResponseEntity<RoomDTO> getRoomById(@PathVariable Long roomId) {
+        return roomService.getRoomById(roomId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
 }
