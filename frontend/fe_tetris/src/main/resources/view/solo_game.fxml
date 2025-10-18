@@ -30,9 +30,12 @@
         </HBox>
     </top>
 
-    <!-- Trung tâm: Board + Thông tin bên phải -->
+    <!-- Trung tâm: Board + Next Block + Thông tin -->
     <center>
-        <HBox spacing="20" alignment="CENTER" padding="20">
+        <HBox spacing="20" alignment="CENTER">
+            <padding>
+                <Insets top="20" right="20" bottom="20" left="20"/>
+            </padding>
 
             <!-- Canvas chính: Board -->
             <StackPane style="-fx-border-color: white; -fx-border-width: 3;">
@@ -40,7 +43,7 @@
                         style="-fx-background-color: black;"/>
             </StackPane>
 
-            <!-- Vùng thông tin + Next Block -->
+            <!-- Vùng bên phải: Next Block + Current + Play Again + Hướng dẫn -->
             <VBox spacing="20" alignment="TOP_CENTER" prefWidth="200">
 
                 <!-- Current Block -->
@@ -69,6 +72,7 @@
                     <Label text="← → : Di chuyển | ↑ : Xoay | ↓ : Rơi nhanh | Space: Drop"
                            style="-fx-font-size: 13px; -fx-text-fill: white;"/>
                 </VBox>
+
             </VBox>
         </HBox>
     </center>

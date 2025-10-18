@@ -20,13 +20,15 @@ import javafx.scene.paint.Color;
 public class SoloGameController {
 
     @FXML private Canvas gameCanvas;
+    @FXML private Canvas nextBlockCanvas;
     @FXML private Label scoreLabel;
     @FXML private Label levelLabel;
     @FXML private Label statusLabel;
     @FXML private Label currentBlockLabel;
     @FXML private Button playAgainButton;
 
-    private GraphicsContext gc;
+    private GraphicsContext gc;      // Board canvas
+    private GraphicsContext nextGc;  // Next block canvas
     private Long playerId;
     private GameStateDTO gameState;
     private AnimationTimer gameLoop;
@@ -37,7 +39,9 @@ public class SoloGameController {
     @FXML
     public void initialize() {
         AuthGuard.requireLogin();
+
         gc = gameCanvas.getGraphicsContext2D();
+        nextGc = nextBlockCanvas.getGraphicsContext2D();
         playAgainButton.setVisible(false); // ẩn mặc định
 
         PlayerDTO player = PlayerApi.getCurrentPlayer();
@@ -73,7 +77,7 @@ public class SoloGameController {
             private long lastUpdate = 0;
             @Override
             public void handle(long now) {
-                if (now - lastUpdate >= 500_000_000) {
+                if (now - lastUpdate >= 500_000_000) { // 0.5s
                     refreshState();
                     lastUpdate = now;
                 }
@@ -161,10 +165,7 @@ public class SoloGameController {
     private void drawNextBlock() {
         if (gameState == null || gameState.getNextBlock() == null) return;
 
-        double offsetX = gameCanvas.getWidth() - 6 * nextBlockSize;
-        double offsetY = 20;
-
-        gc.clearRect(offsetX, offsetY, 5 * nextBlockSize, 5 * nextBlockSize);
+        nextGc.clearRect(0, 0, nextBlockCanvas.getWidth(), nextBlockCanvas.getHeight());
 
         String type = gameState.getNextBlock().toUpperCase();
         int[][] shape = getBlockShape(type);
@@ -173,10 +174,10 @@ public class SoloGameController {
         for (int y = 0; y < shape.length; y++) {
             for (int x = 0; x < shape[y].length; x++) {
                 if (shape[y][x] == 1) {
-                    gc.setFill(color);
-                    gc.fillRect(offsetX + x * nextBlockSize, offsetY + y * nextBlockSize, nextBlockSize, nextBlockSize);
-                    gc.setStroke(Color.DARKGRAY);
-                    gc.strokeRect(offsetX + x * nextBlockSize, offsetY + y * nextBlockSize, nextBlockSize, nextBlockSize);
+                    nextGc.setFill(color);
+                    nextGc.fillRect(x * nextBlockSize, y * nextBlockSize, nextBlockSize, nextBlockSize);
+                    nextGc.setStroke(Color.DARKGRAY);
+                    nextGc.strokeRect(x * nextBlockSize, y * nextBlockSize, nextBlockSize, nextBlockSize);
                 }
             }
         }
