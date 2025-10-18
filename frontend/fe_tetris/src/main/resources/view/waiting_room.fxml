@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.kienminh.controller.WaitingRoomController"
+            prefWidth="500" prefHeight="400"
+            style="-fx-background-color: #1e1e1e;">
+
+    <top>
+        <Label fx:id="roomNameLabel"
+               text="Room: ..."
+               style="-fx-text-fill: white; -fx-font-size: 18px; -fx-padding: 15;"
+               BorderPane.alignment="CENTER" />
+    </top>
+
+    <center>
+        <VBox alignment="CENTER" spacing="10">
+            <Label text="Players in room:" style="-fx-text-fill: lightgray; -fx-font-size: 16px;" />
+            <TextArea fx:id="playerListLabel"
+                      editable="false"
+                      prefWidth="250"
+                      prefHeight="200"
+                      style="-fx-font-family: Consolas; -fx-control-inner-background: #2a2a2a; -fx-text-fill: white;" />
+        </VBox>
+    </center>
+
+    <bottom>
+        <HBox alignment="CENTER" spacing="20" style="-fx-padding: 15;">
+            <Button fx:id="startButton" text="Start Game" prefWidth="120" style="-fx-background-color: #00b050; -fx-text-fill: white;" onAction="#onStartGame" />
+            <Button fx:id="leaveButton" text="Leave Room" prefWidth="120" style="-fx-background-color: #d9534f; -fx-text-fill: white;" onAction="#onLeaveRoom" />
+        </HBox>
+    </bottom>
+</BorderPane>

@@ -1,0 +1,14 @@
+.text-field, .password-field {
+    -fx-background-radius: 10;
+    -fx-border-color: #cccccc;
+    -fx-border-radius: 10;
+    -fx-padding: 8;
+}
+
+.button:hover {
+    -fx-background-color: #1e3c72;
+}
+
+.hyperlink {
+    -fx-text-fill: #2a5298;
+}

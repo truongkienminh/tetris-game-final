@@ -19,13 +19,10 @@ public class SoloGameController {
 
     @PostMapping("/{playerId}/start")
     public ResponseEntity<GameStateDTO> start(@PathVariable Long playerId) {
-        try {
-            GameState state = soloGameService.startGame(playerId);
-            return ResponseEntity.ok(GameMapper.toDTO(state));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(400).body(null);
-        }
+        GameState state = soloGameService.startGame(playerId);
+        return ResponseEntity.ok(GameMapper.toDTO(state));
     }
+
 
     @PostMapping("/{playerId}/action")
     public ResponseEntity<?> action(@PathVariable Long playerId,

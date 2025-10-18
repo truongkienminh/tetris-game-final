@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.canvas.Canvas?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.kienminh.controller.MultiGameController"
+            prefWidth="600" prefHeight="700"
+            style="-fx-background-color: linear-gradient(to bottom, #1e3c72, #2a5298);">
+
+    <!-- Thanh thông tin điểm và cấp độ -->
+    <top>
+        <HBox spacing="20" alignment="CENTER" style="-fx-padding: 15; -fx-background-color: #222;">
+            <Label fx:id="scoreLabel" text="Score: 0"
+                   style="-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;" />
+            <Label fx:id="levelLabel" text="Level: 1"
+                   style="-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;" />
+        </HBox>
+    </top>
+
+    <!-- Canvas hiển thị board game -->
+    <center>
+        <VBox alignment="CENTER" spacing="10">
+            <Canvas fx:id="gameCanvas" width="250" height="500"
+                    style="-fx-border-color: white; -fx-border-width: 3; -fx-background-color: black;" />
+        </VBox>
+    </center>
+
+</BorderPane>

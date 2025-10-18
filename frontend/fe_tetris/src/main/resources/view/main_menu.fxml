@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.*?>
+
+<AnchorPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.kienminh.controller.MainMenuController"
+            prefWidth="500" prefHeight="500"
+            style="-fx-background-color: linear-gradient(to bottom, #1e3c72, #2a5298);"
+            stylesheets="@/view/login.css">
+
+    <VBox alignment="CENTER" spacing="20.0"
+          AnchorPane.topAnchor="60" AnchorPane.leftAnchor="60"
+          AnchorPane.rightAnchor="60" AnchorPane.bottomAnchor="60"
+          style="-fx-background-color: white; -fx-background-radius: 20; -fx-padding: 40;">
+        <Label fx:id="welcomeLabel" text="Xin chào!" style="-fx-font-size: 18px; -fx-text-fill: #2a5298;" />
+        <Text text="TETRIS MAIN MENU"
+              style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-fill: #2a5298;"/>
+
+        <Button text="Chơi đơn"
+                prefWidth="300"
+                prefHeight="45"
+                onAction="#onSoloGame"
+                style="-fx-background-color: #2a5298; -fx-text-fill: white; -fx-font-size: 16px; -fx-background-radius: 8;"/>
+
+        <Button text="Chơi nhiều người"
+                prefWidth="300"
+                prefHeight="45"
+                onAction="#onMultiplayer"
+                style="-fx-background-color: #2a5298; -fx-text-fill: white; -fx-font-size: 16px; -fx-background-radius: 8;"/>
+
+        <Button text="Hồ sơ cá nhân"
+                prefWidth="300"
+                prefHeight="45"
+                onAction="#onProfile"
+                style="-fx-background-color: #2a5298; -fx-text-fill: white; -fx-font-size: 16px; -fx-background-radius: 8;"/>
+
+        <Button text="Đăng xuất"
+                prefWidth="300"
+                prefHeight="45"
+                onAction="#onLogout"
+                style="-fx-background-color: #d9534f; -fx-text-fill: white; -fx-font-size: 16px; -fx-background-radius: 8;"/>
+
+    </VBox>
+</AnchorPane>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.*?>
+
+<AnchorPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.kienminh.controller.RoomController"
+            prefWidth="600" prefHeight="400"
+            style="-fx-background-color: linear-gradient(to bottom, #1e3c72, #2a5298);">
+
+    <VBox alignment="CENTER" spacing="25.0"
+          AnchorPane.topAnchor="40" AnchorPane.leftAnchor="60"
+          AnchorPane.rightAnchor="60" AnchorPane.bottomAnchor="40"
+          style="-fx-background-color: white; -fx-background-radius: 20; -fx-padding: 30;">
+
+        <Text text="MULTIPLAYER ROOM"
+              style="-fx-font-size: 26px; -fx-font-weight: bold; -fx-fill: #2a5298;"/>
+
+        <!-- Khu vực tạo phòng -->
+        <VBox alignment="CENTER" spacing="10">
+            <Label text="Tạo phòng mới" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+            <TextField fx:id="roomNameField" promptText="Nhập tên phòng..." prefWidth="250"/>
+            <Button text="Tạo phòng"
+                    prefWidth="200"
+                    onAction="#onCreateRoom"
+                    style="-fx-background-color: #2a5298; -fx-text-fill: white; -fx-font-size: 15px;"/>
+        </VBox>
+
+        <Separator prefWidth="300"/>
+
+        <!-- Khu vực tham gia phòng -->
+        <VBox alignment="CENTER" spacing="10">
+            <Label text="Tham gia phòng có sẵn" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+            <TextField fx:id="roomIdField" promptText="Nhập ID phòng..." prefWidth="250"/>
+            <Button text="Tham gia"
+                    prefWidth="200"
+                    onAction="#onJoinRoom"
+                    style="-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-size: 15px;"/>
+        </VBox>
+
+        <Button text="⬅ Quay lại"
+                onAction="#onBack"
+                style="-fx-background-color: #d9534f; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 10;"/>
+    </VBox>
+</AnchorPane>
