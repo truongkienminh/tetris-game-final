@@ -7,6 +7,7 @@ import kienminh.tetrisgame.model.entity.Room;
 import kienminh.tetrisgame.model.entity.User;
 import kienminh.tetrisgame.repository.PlayerRepository;
 import kienminh.tetrisgame.repository.RoomRepository;
+import kienminh.tetrisgame.repository.UserRepository;
 import kienminh.tetrisgame.service.interfaces.RoomService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -23,30 +24,58 @@ public class RoomServiceImpl implements RoomService {
 
     private final RoomRepository roomRepository;
     private final PlayerRepository playerRepository;
-
+    private final UserRepository userRepository;
     /**
      * 🔹 Tạo phòng mới, gán host là người tạo
      */
     @Override
+    @Transactional
     public RoomDTO createRoom(String roomName, User hostUser) {
+        // 1️⃣ Lấy user thật từ DB
+        User persistentUser = userRepository.findById(hostUser.getId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // 2️⃣ Kiểm tra nếu user đã có player cũ (tránh duplicate)
+        Optional<Player> existingPlayerOpt = playerRepository.findByUserId(persistentUser.getId());
+
+        Player hostPlayer;
+        if (existingPlayerOpt.isPresent()) {
+            // Nếu player đã tồn tại, cập nhật lại thông tin
+            hostPlayer = existingPlayerOpt.get();
+
+            // Nếu player đang ở phòng khác -> xóa liên kết phòng cũ
+            if (hostPlayer.getRoom() != null) {
+                Room oldRoom = hostPlayer.getRoom();
+                oldRoom.getPlayers().remove(hostPlayer);
+                hostPlayer.setRoom(null);
+            }
+
+            hostPlayer.setOnline(true);
+            hostPlayer.setHost(true);
+        } else {
+            // Nếu chưa có player -> tạo mới
+            hostPlayer = Player.builder()
+                    .user(persistentUser)
+                    .online(true)
+                    .host(true)
+                    .build();
+        }
+
+        // 3️⃣ Tạo room mới
         Room room = Room.builder()
                 .name(roomName)
-                .host(hostUser)
+                .host(persistentUser)
                 .build();
 
-        Player hostPlayer = Player.builder()
-                .user(hostUser)
-                .online(true)
-                .host(true)
-                .room(room)
-                .build();
+        // 4️⃣ Liên kết player và room
+        room.addPlayer(hostPlayer);
 
-        room.getPlayers().add(hostPlayer);
-
+        // 5️⃣ Lưu room (vì cascade = ALL sẽ lưu cả player)
         Room savedRoom = roomRepository.save(room);
 
         return convertToDTO(savedRoom);
     }
+
 
     /**
      * 🔹 Người chơi khác tham gia phòng

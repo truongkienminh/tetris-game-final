@@ -9,5 +9,5 @@ import java.util.Optional;
 public interface PlayerRepository extends JpaRepository<Player, Long> {
     Optional<Player> findByUser(User user);
     Optional<Player> findByUser_Username(String username);
-
+    Optional<Player> findByUserId(Long userId);
 }

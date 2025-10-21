@@ -72,16 +72,10 @@ public class    AuthServiceImpl implements AuthService, UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = userRepository.findByUsername(username)
+        return userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-
-        // ✅ Chú ý: dùng roles() thay vì authorities() để Spring Security nhận đúng ROLE_USER
-        return org.springframework.security.core.userdetails.User
-                .withUsername(user.getUsername())
-                .password(user.getPassword())
-                .roles("USER")
-                .build();
     }
+
 
     @Override
     public User getAuthenticatedUser() {

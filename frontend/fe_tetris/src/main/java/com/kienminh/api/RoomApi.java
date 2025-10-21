@@ -16,9 +16,13 @@ public class RoomApi {
         try {
             String json = String.format("{\"name\":\"%s\"}", name);
             String response = HttpClientUtil.post("/api/rooms/create", json, SessionManager.getToken());
-            RoomDTO room = mapper.readValue(response, RoomDTO.class);
 
-            // Lưu thông tin phòng vào Session
+            if (response == null || response.isEmpty()) {
+                System.err.println("❌ Failed to create room: empty or null response");
+                return null;
+            }
+
+            RoomDTO room = mapper.readValue(response, RoomDTO.class);
             SessionManager.setRoom(room.getId(), room.getName(), true);
             return room;
         } catch (Exception e) {
@@ -26,6 +30,7 @@ public class RoomApi {
             return null;
         }
     }
+
 
     /** Tham gia phòng */
     public static boolean joinRoom(Long roomId) {
