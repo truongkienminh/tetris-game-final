@@ -18,7 +18,7 @@
     <center>
         <VBox alignment="CENTER" spacing="10">
             <Label text="Players in room:" style="-fx-text-fill: lightgray; -fx-font-size: 16px;" />
-            <TextArea fx:id="playerListLabel"
+            <TextArea fx:id="playerListArea"
                       editable="false"
                       prefWidth="250"
                       prefHeight="200"

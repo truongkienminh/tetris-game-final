@@ -35,10 +35,9 @@ public class SessionManager {
     public static void setPlayer(PlayerDTO player) {
         if (player != null) {
             playerId = player.getId();
-            if (player.getUser() != null) {
-                userId = player.getUser().getId();
-                username = player.getUser().getUsername();
-            }
+            username = player.getUsername();
+            // Nếu backend không có userId riêng, ta dùng playerId như userId
+            userId = player.getId();
         }
     }
 

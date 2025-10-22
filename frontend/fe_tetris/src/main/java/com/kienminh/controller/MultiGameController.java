@@ -24,6 +24,13 @@ public class MultiGameController {
     private final int blockSize = 25;
     private GameStateDTO gameState;
 
+    // --- Nhận state khởi tạo từ backend ---
+    private static GameStateDTO initialState;
+
+    public static void setInitialGameState(GameStateDTO state) {
+        initialState = state;
+    }
+
     @FXML
     public void initialize() {
         gc = gameCanvas.getGraphicsContext2D();
@@ -36,8 +43,12 @@ public class MultiGameController {
             }
         });
 
-        // Start game loop thread
-        new Thread(this::gameLoop).start();
+        // Lấy state ban đầu (từ host start hoặc từ backend)
+        GameStateDTO state = initialState != null ? initialState : MultiGameApi.getPlayerState(playerId);
+
+        // Bắt đầu game loop
+        GameStateDTO finalState = state;
+        new Thread(() -> gameLoop(finalState)).start();
     }
 
     private void handleKeyPress(KeyEvent e) {
@@ -61,8 +72,7 @@ public class MultiGameController {
         }
     }
 
-    private void gameLoop() {
-        GameStateDTO state = MultiGameApi.getPlayerState(playerId);
+    private void gameLoop(GameStateDTO state) {
         while (running && state != null && !"GAME_OVER".equalsIgnoreCase(state.getStatus())) {
             try {
                 Thread.sleep(500);

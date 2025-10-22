@@ -12,7 +12,7 @@ import java.nio.charset.StandardCharsets;
 
 public class HttpClientUtil {
 
-    private static final String BASE_URL = "http://localhost:8080";
+    public static final String BASE_URL = "http://localhost:8080";
 
     /** Gửi request GET */
     public static String get(String path, String token) throws IOException {
@@ -25,21 +25,24 @@ public class HttpClientUtil {
             return client.execute(request, response -> {
                 int statusCode = response.getCode();
                 HttpEntity entity = response.getEntity();
+                String body = entity != null
+                        ? new String(entity.getContent().readAllBytes(), StandardCharsets.UTF_8)
+                        : "";
+
+                // ✅ In log để kiểm tra rõ lỗi
+                System.out.println("[HTTP GET] " + path + " -> " + statusCode);
+                System.out.println("[HTTP BODY] " + body);
 
                 if (statusCode >= 200 && statusCode < 300) {
-                    return entity != null
-                            ? new String(entity.getContent().readAllBytes(), StandardCharsets.UTF_8)
-                            : "";
+                    return body;
                 } else {
-                    String body = entity != null
-                            ? new String(entity.getContent().readAllBytes(), StandardCharsets.UTF_8)
-                            : "";
-                    System.err.println("GET " + path + " failed: " + statusCode + " - " + body);
+                    System.err.println("[HTTP ERROR] GET " + path + " failed: " + statusCode);
                     return null;
                 }
             });
         }
     }
+
 
     /** Gửi request POST */
     public static String post(String path, String json, String token) throws IOException {
