@@ -17,11 +17,9 @@ import kienminh.tetrisgame.util.JwtUtil;
 @Component
 public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter; // not used directly but keep for DI
     private final JwtUtil jwtUtil;
 
-    public WebSocketAuthChannelInterceptor(JwtAuthenticationFilter jwtAuthenticationFilter, JwtUtil jwtUtil) {
-        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    public WebSocketAuthChannelInterceptor(JwtUtil jwtUtil) {
         this.jwtUtil = jwtUtil;
     }
 

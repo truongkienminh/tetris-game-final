@@ -2,6 +2,7 @@ package kienminh.tetrisgame.config;
 
 import kienminh.tetrisgame.service.impl.AuthServiceImpl;
 import kienminh.tetrisgame.util.JwtUtil;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -23,13 +24,10 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtUtil jwtUtil;
-
-    public SecurityConfig(JwtUtil jwtUtil) {
-        this.jwtUtil = jwtUtil;
-    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -57,8 +55,9 @@ public class SecurityConfig {
     // CORS config
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("*"));
+    CorsConfiguration config = new CorsConfiguration();
+    // use allowed origin patterns to allow wildcard with credentials
+    config.setAllowedOriginPatterns(List.of("*"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
@@ -72,17 +71,46 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    JwtAuthenticationFilter jwtAuthenticationFilter,
                                                    AuthenticationProvider authenticationProvider) throws Exception {
+
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                // Phân quyền
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/ws/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                        .anyRequest().authenticated()
+                        .requestMatchers(
+                                "/api/auth/**",
+                                "/login", "/register",
+                                "/css/**", "/js/**", "/images/**", "/favicon.ico",
+                                "/swagger-ui/**", "/v3/api-docs/**"
+                        ).permitAll()
+                        .anyRequest().authenticated() // các Thymeleaf pages
                 )
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+                // Cho phép session để Thymeleaf page load
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+
+                // Authentication provider
                 .authenticationProvider(authenticationProvider)
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+                // JWT filter
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+
+                // Form login (Thymeleaf)
+                .formLogin(form -> form
+                        .loginPage("/login")
+                        .defaultSuccessUrl("/mainmenu", true)
+                        .permitAll()
+                )
+
+                // Logout
+                .logout(logout -> logout
+                        .logoutUrl("/logout")
+                        .logoutSuccessUrl("/login?logout")
+                        .invalidateHttpSession(true)
+                        .deleteCookies("JSESSIONID")
+                );
 
         return http.build();
     }
+
 }

@@ -40,6 +40,7 @@ public class MultiGameServiceImpl implements GameService {
     /** Task đang chạy của từng player */
     private final Map<Long, ScheduledFuture<?>> scheduledTasks = new ConcurrentHashMap<>();
 
+    /** Tính tốc độ rơi dựa theo level */
     private long getIntervalForLevel(int level) {
         return Math.max(200, 1000 - (level - 1) * 150);
     }
@@ -50,8 +51,7 @@ public class MultiGameServiceImpl implements GameService {
 
     @Override
     public GameState startGame(Long playerId) {
-        // Multiplayer không start game cho từng player riêng lẻ,
-        // nên ta chỉ trả về trạng thái hiện tại của player.
+        // Multiplayer không start riêng từng người chơi
         GameState state = playerStates.get(playerId);
         if (state == null) {
             state = new GameState();
@@ -73,7 +73,7 @@ public class MultiGameServiceImpl implements GameService {
             scheduleTick(player.getId(), roomId);
         }
 
-        // Thông báo WebSocket cho toàn phòng
+        // Gửi thông báo WebSocket
         messagingTemplate.convertAndSend("/topic/room/" + roomId, Map.of(
                 "type", "GAME_START",
                 "roomId", roomId
@@ -86,6 +86,7 @@ public class MultiGameServiceImpl implements GameService {
     // ==============================================================
     // ⏱️ Tick cho từng Player
     // ==============================================================
+
     private void scheduleTick(Long playerId, Long roomId) {
         GameState state = playerStates.get(playerId);
         if (state == null) return;
@@ -117,17 +118,20 @@ public class MultiGameServiceImpl implements GameService {
 
     @Override
     public GameState tick(Long playerId) {
-        GameState state = getState(playerId);
-        state.tick();
-        return state;
+        GameState s = getState(playerId);
+        if (s.isGameOver()) return s;
+        s.tick();
+        return s;
     }
 
     // ==============================================================
     // 🧱 Các hành động từ người chơi
     // ==============================================================
+
     @Override
     public GameState moveLeft(Long playerId) {
         GameState s = getState(playerId);
+        if (s.isGameOver()) return s;
         s.moveLeft();
         return s;
     }
@@ -135,6 +139,7 @@ public class MultiGameServiceImpl implements GameService {
     @Override
     public GameState moveRight(Long playerId) {
         GameState s = getState(playerId);
+        if (s.isGameOver()) return s;
         s.moveRight();
         return s;
     }
@@ -142,6 +147,7 @@ public class MultiGameServiceImpl implements GameService {
     @Override
     public GameState rotate(Long playerId) {
         GameState s = getState(playerId);
+        if (s.isGameOver()) return s;
         s.rotate();
         return s;
     }
@@ -149,6 +155,7 @@ public class MultiGameServiceImpl implements GameService {
     @Override
     public GameState drop(Long playerId) {
         GameState s = getState(playerId);
+        if (s.isGameOver()) return s;
         s.drop();
         return s;
     }
@@ -156,6 +163,7 @@ public class MultiGameServiceImpl implements GameService {
     // ==============================================================
     // 💀 Khi 1 người chơi game over
     // ==============================================================
+
     private void handlePlayerGameOver(Long playerId, Long roomId) {
         cancelTick(playerId);
 
@@ -202,8 +210,8 @@ public class MultiGameServiceImpl implements GameService {
     }
 
     // ==============================================================
-// 🔍 Truy cập state
-// ==============================================================
+    // 🔍 Truy cập state
+    // ==============================================================
 
     @Override
     public GameState getState(Long playerId) {
@@ -237,11 +245,14 @@ public class MultiGameServiceImpl implements GameService {
         return result;
     }
 
-
     @Override
     public boolean isGameOver(Long playerId) {
         return getState(playerId).isGameOver();
     }
+
+    // ==============================================================
+    // 🧹 Shutdown
+    // ==============================================================
 
     @PreDestroy
     public void shutdown() {
@@ -252,6 +263,7 @@ public class MultiGameServiceImpl implements GameService {
     // ==============================================================
     // 🔧 Convert Room → DTO
     // ==============================================================
+
     private RoomDTO convertToDTO(Room room) {
         return RoomDTO.builder()
                 .id(room.getId())

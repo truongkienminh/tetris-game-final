@@ -2,11 +2,14 @@ package com.kienminh.controller;
 
 import com.kienminh.api.MultiGameApi;
 import com.kienminh.model.GameStateDTO;
+import com.kienminh.util.SceneUtil;
 import com.kienminh.util.SessionManager;
+import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Label;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.paint.Color;
@@ -18,11 +21,11 @@ public class MultiGameController {
     @FXML private Label levelLabel;
     @FXML private Label statusLabel;
 
-    private Long playerId;
     private GraphicsContext gc;
-    private volatile boolean running = true;
-    private final int blockSize = 25;
+    private Long playerId;
     private GameStateDTO gameState;
+    private AnimationTimer gameLoop;
+    private final int blockSize = 25;
 
     // --- Nhận state khởi tạo từ backend ---
     private static GameStateDTO initialState;
@@ -36,29 +39,63 @@ public class MultiGameController {
         gc = gameCanvas.getGraphicsContext2D();
         playerId = SessionManager.getPlayerId();
 
-        // Đăng ký KeyEvent sau khi Scene attach
+        // Lấy state ban đầu từ host hoặc backend
+        gameState = initialState != null ? initialState : MultiGameApi.getPlayerState(playerId);
+        if (gameState == null) {
+            statusLabel.setText("Không thể tải trạng thái trò chơi!");
+            return;
+        }
+
+        drawBoard();
+        updateLabels();
+
+        // Bắt đầu vòng lặp game
+        startGameLoop();
+
+        // Gắn KeyEvent
         Platform.runLater(() -> {
+            gameCanvas.setFocusTraversable(true);
+            gameCanvas.requestFocus();
             if (gameCanvas.getScene() != null) {
-                gameCanvas.getScene().addEventFilter(KeyEvent.KEY_PRESSED, this::handleKeyPress);
+                gameCanvas.getScene().addEventFilter(KeyEvent.KEY_PRESSED, this::handleKey);
             }
         });
-
-        // Lấy state ban đầu (từ host start hoặc từ backend)
-        GameStateDTO state = initialState != null ? initialState : MultiGameApi.getPlayerState(playerId);
-
-        // Bắt đầu game loop
-        GameStateDTO finalState = state;
-        new Thread(() -> gameLoop(finalState)).start();
     }
 
-    private void handleKeyPress(KeyEvent e) {
+    private void startGameLoop() {
+        if (gameLoop != null) gameLoop.stop();
+
+        gameLoop = new AnimationTimer() {
+            private long lastUpdate = 0;
+            @Override
+            public void handle(long now) {
+                if (now - lastUpdate >= 500_000_000) { // 0.5s
+                    refreshState();
+                    lastUpdate = now;
+                }
+            }
+        };
+        gameLoop.start();
+    }
+
+    private void refreshState() {
+        GameStateDTO updated = MultiGameApi.getPlayerState(playerId);
+        if (updated != null) {
+            gameState = updated;
+            drawBoard();
+            updateLabels();
+            checkGameOver();
+        }
+    }
+
+    private void handleKey(KeyEvent event) {
         if (gameState == null || "GAME_OVER".equalsIgnoreCase(gameState.getStatus())) return;
 
-        String action = switch (e.getCode()) {
+        String action = switch (event.getCode()) {
             case LEFT -> "LEFT";
             case RIGHT -> "RIGHT";
             case UP -> "ROTATE";
-            case DOWN -> "TICK";    // auto tick
+            case DOWN -> "TICK";
             case SPACE -> "DROP";
             default -> null;
         };
@@ -66,63 +103,73 @@ public class MultiGameController {
         if (action != null) {
             GameStateDTO updated = MultiGameApi.move(playerId, action);
             if (updated != null) {
-                update(updated);
-                checkGameOver(updated);
+                gameState = updated;
+                drawBoard();
+                updateLabels();
+                checkGameOver();
+            }
+            event.consume();
+        }
+    }
+
+    private void drawBoard() {
+        if (gameState == null || gameState.getBoard() == null) return;
+
+        int[][] grid = gameState.getBoard();
+        gc.clearRect(0, 0, gameCanvas.getWidth(), gameCanvas.getHeight());
+
+        for (int y = 0; y < grid.length; y++) {
+            for (int x = 0; x < grid[y].length; x++) {
+                int val = grid[y][x];
+                gc.setFill(getColorForBlock(val));
+                gc.fillRect(x * blockSize, y * blockSize, blockSize, blockSize);
+                gc.setStroke(Color.DARKGRAY);
+                gc.strokeRect(x * blockSize, y * blockSize, blockSize, blockSize);
             }
         }
     }
 
-    private void gameLoop(GameStateDTO state) {
-        while (running && state != null && !"GAME_OVER".equalsIgnoreCase(state.getStatus())) {
-            try {
-                Thread.sleep(500);
-                state = MultiGameApi.getPlayerState(playerId);
-                update(state);
-                checkGameOver(state);
-            } catch (InterruptedException e) {
-                break;
-            }
-        }
+    private Color getColorForBlock(int val) {
+        return switch (val) {
+            case 1 -> Color.CYAN;
+            case 2 -> Color.YELLOW;
+            case 3 -> Color.PURPLE;
+            case 4 -> Color.LIMEGREEN;
+            case 5 -> Color.RED;
+            case 6 -> Color.BLUE;
+            case 7 -> Color.ORANGE;
+            default -> Color.BLACK;
+        };
     }
 
-    private void update(GameStateDTO state) {
-        if (state == null) return;
-        gameState = state;
-
-        Platform.runLater(() -> {
-            scoreLabel.setText("Score: " + state.getScore());
-            levelLabel.setText("Level: " + state.getLevel());
-            drawBoard(state);
-        });
+    private void updateLabels() {
+        if (gameState == null) return;
+        scoreLabel.setText("Score: " + gameState.getScore());
+        levelLabel.setText("Level: " + gameState.getLevel());
+        statusLabel.setText("Status: " + gameState.getStatus());
     }
 
-    private void checkGameOver(GameStateDTO state) {
-        if (state != null && "GAME_OVER".equalsIgnoreCase(state.getStatus())) {
-            running = false;
+    private void checkGameOver() {
+        if (gameState != null && "GAME_OVER".equalsIgnoreCase(gameState.getStatus())) {
+            if (gameLoop != null) gameLoop.stop();
             Platform.runLater(() -> {
-                if (statusLabel != null) {
-                    statusLabel.setText("Game Over!");
-                }
+                statusLabel.setText("Game Over!");
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Game Over");
+                alert.setHeaderText(null);
+                alert.setContentText("Trò chơi đã kết thúc!\nĐiểm của bạn: " + gameState.getScore());
+                alert.showAndWait();
             });
         }
     }
 
-    private void drawBoard(GameStateDTO state) {
-        int[][] grid = state.getBoard();
-        if (grid == null) return;
-
-        gc.clearRect(0, 0, gameCanvas.getWidth(), gameCanvas.getHeight());
-        for (int y = 0; y < grid.length; y++) {
-            for (int x = 0; x < grid[y].length; x++) {
-                if (grid[y][x] > 0) {
-                    gc.setFill(Color.LIMEGREEN);
-                    gc.fillRect(x * blockSize, y * blockSize, blockSize - 1, blockSize - 1);
-                }
-            }
-        }
+    @FXML
+    private void onBack() {
+        if (gameLoop != null) gameLoop.stop();
+        SceneUtil.switchScene("main_menu.fxml");
     }
 
     public void stop() {
-        running = false;
+        if (gameLoop != null) gameLoop.stop();
     }
 }

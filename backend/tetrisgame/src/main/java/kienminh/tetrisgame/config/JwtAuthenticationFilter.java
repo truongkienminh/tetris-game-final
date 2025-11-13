@@ -6,7 +6,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import io.jsonwebtoken.JwtException;
 
@@ -16,7 +15,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
-@Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
@@ -34,12 +32,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String path = request.getServletPath();
 
-        // ✅ Chỉ bỏ qua login & register
-        if (path.equals("/api/auth/login") || path.equals("/api/auth/register")) {
+        // ✅ Chỉ áp dụng filter cho API
+        if (!path.startsWith("/api/")) {
             filterChain.doFilter(request, response);
             return;
         }
 
+        // Lấy token từ header
         final String authHeader = request.getHeader("Authorization");
         String username = null;
         String token = null;
@@ -53,7 +52,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
 
-        // ✅ Set authentication nếu token hợp lệ
+        // Xác thực user nếu token hợp lệ
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
@@ -62,8 +61,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
-            } else {
-                System.out.println("JWT token invalid for user: " + username);
             }
         }
 

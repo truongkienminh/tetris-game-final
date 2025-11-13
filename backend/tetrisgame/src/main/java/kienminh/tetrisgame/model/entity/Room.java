@@ -22,8 +22,10 @@ import java.util.Set;
 
         private String name;
 
-        @OneToOne(cascade = CascadeType.ALL)
+        @OneToOne
+        @JoinColumn(name = "host_id")
         private User host;
+
 
         @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true)
         @Builder.Default

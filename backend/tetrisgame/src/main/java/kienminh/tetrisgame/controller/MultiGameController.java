@@ -3,6 +3,7 @@ package kienminh.tetrisgame.controller;
 import kienminh.tetrisgame.dto.RoomDTO;
 import kienminh.tetrisgame.model.game.GameState;
 import kienminh.tetrisgame.service.impl.MultiGameServiceImpl;
+import kienminh.tetrisgame.util.GameMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -49,15 +50,37 @@ public class MultiGameController {
     }
 
     // ==============================================================
+    // ⏱️ API: Tick thủ công từ người chơi
+    // ==============================================================
+    @PostMapping("/player/{playerId}/tick")
+    public ResponseEntity<GameState> tick(@PathVariable Long playerId) {
+        try {
+            GameState state = multiGameService.tick(playerId);
+            return ResponseEntity.ok(state);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(400)
+                    .body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(null);
+        }
+    }
+
+    // ==============================================================
     // 🔍 TRẠNG THÁI GAME
     // ==============================================================
     @GetMapping("/player/{playerId}/state")
-    public ResponseEntity<GameState> getPlayerState(@PathVariable Long playerId) {
-        GameState state = multiGameService.getGameState(playerId);
-        if (state == null) {
-            return ResponseEntity.notFound().build();
+    public ResponseEntity<?> getPlayerState(@PathVariable Long playerId) {
+        try {
+            GameState state = multiGameService.getGameState(playerId);
+            return ResponseEntity.ok(GameMapper.toDTO(state));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(400)
+                    .body(Map.of("error", "Game not started"));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(Map.of("error", "Internal server error", "message", e.getMessage()));
         }
-        return ResponseEntity.ok(state);
     }
 
     @GetMapping("/states")
