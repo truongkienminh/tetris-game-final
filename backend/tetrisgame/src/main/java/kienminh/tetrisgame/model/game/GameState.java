@@ -105,4 +105,8 @@ public class GameState {
     public boolean isGameOver() {
         return status == GameStatus.GAME_OVER;
     }
+
+    public Block getNextBlock(){
+        return board.getNextBlockCopy();
+    }
 }

@@ -3,6 +3,7 @@ package kienminh.tetrisgame.service.impl;
 import jakarta.annotation.PreDestroy;
 import kienminh.tetrisgame.model.entity.Player;
 import kienminh.tetrisgame.model.entity.User;
+import kienminh.tetrisgame.model.game.Block;
 import kienminh.tetrisgame.model.game.GameState;
 import kienminh.tetrisgame.repository.PlayerRepository;
 import kienminh.tetrisgame.repository.UserRepository;
@@ -108,6 +109,7 @@ public class SoloGameServiceImpl implements GameService {
         scheduledTasks.put(playerId, future);
     }
 
+
     /** 🧹 Hủy tick của player */
     private void cancelTick(Long playerId) {
         ScheduledFuture<?> future = scheduledTasks.remove(playerId);
@@ -117,6 +119,17 @@ public class SoloGameServiceImpl implements GameService {
         }
         currentIntervals.remove(playerId);
     }
+    /**
+     * Lấy viên block tiếp theo của player, chưa xuất hiện trên board
+     */
+    public Block getNextBlock(Long playerId) {
+        GameState state = gameStates.get(playerId);
+        if (state == null) {
+            throw new IllegalStateException("Game not started for player " + playerId);
+        }
+        return state.getNextBlock(); // trả về Block tiếp theo
+    }
+
 
     /** 🧱 Tick logic */
     @Override
