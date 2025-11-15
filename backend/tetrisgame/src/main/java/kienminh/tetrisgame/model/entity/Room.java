@@ -1,6 +1,7 @@
     package kienminh.tetrisgame.model.entity;
 
 import jakarta.persistence.*;
+import kienminh.tetrisgame.model.game.enums.RoomStatus;
 import lombok.*;
 
 import java.util.HashSet;
@@ -26,6 +27,7 @@ import java.util.Set;
         @JoinColumn(name = "host_id")
         private User host;
 
+        private RoomStatus roomStatus;
 
         @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true)
         @Builder.Default

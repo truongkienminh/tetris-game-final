@@ -5,16 +5,15 @@ import Register from "./pages/Register";
 import MainMenu from "./pages/MainMenu";
 import Profile from "./pages/Profile";
 import SoloGame from "./pages/SoloGame";
-import { getCurrentUser } from "./api";
 import Room from "./pages/Room";
 import Lobby from "./pages/Lobby";
-
+import MultiGame from "./pages/MultiGame"; // ← import MultiGame
+import { getCurrentUser } from "./api";
 
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const navigate = useNavigate();
 
-  // Kiểm tra nếu đã login khi load app
   useEffect(() => {
     const fetchUser = async () => {
       try {
@@ -35,7 +34,6 @@ function App() {
 
   return (
     <Routes>
-      {/* Login */}
       <Route
         path="/login"
         element={
@@ -47,8 +45,6 @@ function App() {
           />
         }
       />
-
-      {/* Register */}
       <Route
         path="/register"
         element={
@@ -60,8 +56,6 @@ function App() {
           />
         }
       />
-
-      {/* Main Menu */}
       <Route
         path="/mainmenu"
         element={
@@ -72,39 +66,34 @@ function App() {
           )
         }
       />
-
-      {/* Profile */}
       <Route
         path="/profile"
         element={currentUser ? <Profile /> : <Navigate to="/login" />}
       />
-
-      {/* Solo Game */}
       <Route
         path="/solo-game/:playerId"
         element={
           currentUser ? <SoloGame playerId={currentUser.id} /> : <Navigate to="/login" />
         }
       />
-
-      {/* Fallback route */}
-      <Route
-        path="*"
-        element={<Navigate to={currentUser ? "/mainmenu" : "/login"} />}
-      />
-
       <Route
         path="/rooms"
         element={currentUser ? <Room currentUser={currentUser} /> : <Navigate to="/login" />}
       />
-
       <Route
         path="/lobby/:roomId"
         element={currentUser ? <Lobby currentUser={currentUser} /> : <Navigate to="/login" />}
       />
+      {/* ← Thêm route MultiGame */}
+      <Route
+        path="/multigame/:roomId"
+        element={currentUser ? <MultiGame currentUser={currentUser} /> : <Navigate to="/login" />}
+      />
+      <Route
+        path="*"
+        element={<Navigate to={currentUser ? "/mainmenu" : "/login"} />}
+      />
     </Routes>
-
-
   );
 }
 

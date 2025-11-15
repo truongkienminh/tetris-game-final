@@ -430,7 +430,7 @@ export default function Profile() {
                 <div className="field-icon">⭐</div>
                 <div className="field-content">
                   <label className="label">Last Score</label>
-                  <div className="score-badge">{user.lastScore || 0}</div>
+                  <div className="score-badge">{user.lastScore }</div>
                 </div>
               </div>
             </div>

@@ -6,6 +6,7 @@ import kienminh.tetrisgame.dto.RoomDTO;
 import kienminh.tetrisgame.model.entity.Player;
 import kienminh.tetrisgame.model.entity.Room;
 import kienminh.tetrisgame.model.game.GameState;
+import kienminh.tetrisgame.model.game.enums.RoomStatus;
 import kienminh.tetrisgame.repository.PlayerRepository;
 import kienminh.tetrisgame.repository.RoomRepository;
 import kienminh.tetrisgame.service.interfaces.GameService;
@@ -72,7 +73,7 @@ public class MultiGameServiceImpl implements GameService {
             playerStates.put(player.getId(), state);
             scheduleTick(player.getId(), roomId);
         }
-
+        room.setRoomStatus(RoomStatus.PLAYING);
         // Gửi thông báo WebSocket
         messagingTemplate.convertAndSend("/topic/room/" + roomId, Map.of(
                 "type", "GAME_START",
@@ -272,6 +273,7 @@ public class MultiGameServiceImpl implements GameService {
                 .players(room.getPlayers().stream()
                         .map(PlayerDTO::new)
                         .toList())
+                .roomStatus(room.getRoomStatus())
                 .build();
     }
 }
