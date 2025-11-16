@@ -7,13 +7,17 @@ import kienminh.tetrisgame.model.game.Block;
 import kienminh.tetrisgame.model.game.GameState;
 import kienminh.tetrisgame.repository.PlayerRepository;
 import kienminh.tetrisgame.repository.UserRepository;
+import kienminh.tetrisgame.service.interfaces.AuthService;
 import kienminh.tetrisgame.service.interfaces.GameService;
+import kienminh.tetrisgame.service.interfaces.PlayerService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.*;
 
 @Service("soloGameService")
@@ -22,7 +26,10 @@ public class SoloGameServiceImpl implements GameService {
 
     private static final Logger logger = LoggerFactory.getLogger(SoloGameServiceImpl.class);
     private final UserScoreService userScoreService;
-    private final PlayerRepository playerRepository;
+    private final PlayerService playerService;
+
+    @Autowired
+    private UserRepository userRepository;
 
     /** Scheduler chung cho tất cả người chơi */
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(4);
@@ -37,17 +44,18 @@ public class SoloGameServiceImpl implements GameService {
     private final Map<Long, Long> currentIntervals = new ConcurrentHashMap<>();
 
     @Override
-    public GameState startGame(Long playerId) {
-        Player player = playerRepository.findById(playerId)
-                .orElseThrow(() -> new IllegalArgumentException("Player not found"));
+    public GameState startGame(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
+        Player player = playerService.getCurrentPlayer(user);
         // Tạo game mới
         GameState state = new GameState();
         state.start();
-        gameStates.put(playerId, state);
+        gameStates.put(player.getId(), state);
 
         // Bắt đầu tick tự động
-        scheduleTick(playerId);
+        scheduleTick(player.getId());
 
         return state;
     }

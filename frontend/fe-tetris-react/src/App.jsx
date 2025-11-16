@@ -60,7 +60,10 @@ function App() {
         path="/mainmenu"
         element={
           currentUser ? (
-            <MainMenu onLogout={handleLogout} currentUser={currentUser} />
+            <MainMenu
+              currentUser={currentUser}
+              onLogout={() => setCurrentUser(null)}
+            />
           ) : (
             <Navigate to="/login" />
           )
@@ -71,7 +74,7 @@ function App() {
         element={currentUser ? <Profile /> : <Navigate to="/login" />}
       />
       <Route
-        path="/solo-game/:playerId"
+        path="/solo-game/:userId"
         element={
           currentUser ? <SoloGame playerId={currentUser.id} /> : <Navigate to="/login" />
         }

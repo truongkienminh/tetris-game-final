@@ -4,7 +4,9 @@ import kienminh.tetrisgame.model.entity.Player;
 import kienminh.tetrisgame.model.entity.User;
 import kienminh.tetrisgame.repository.PlayerRepository;
 
+import kienminh.tetrisgame.repository.UserRepository;
 import kienminh.tetrisgame.service.interfaces.PlayerService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,6 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class PlayerServiceImpl implements PlayerService {
 
     private final PlayerRepository playerRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     public PlayerServiceImpl(PlayerRepository playerRepository) {
         this.playerRepository = playerRepository;
@@ -46,5 +51,17 @@ public class PlayerServiceImpl implements PlayerService {
         return playerRepository.findByUser(user)
                 .orElseGet(() -> createPlayer(user));
     }
+
+    @Override
+    public Player getPlayerByUserId(Long userId) {
+        // Lấy User trước
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + userId));
+
+        // Lấy Player liên kết với User
+        return playerRepository.findByUser(user)
+                .orElseThrow(() -> new IllegalStateException("Player not found for user id: " + userId));
+    }
+
 }
 

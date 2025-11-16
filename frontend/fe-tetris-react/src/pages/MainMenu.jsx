@@ -1,9 +1,9 @@
-// MainMenu.jsx
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
+import axios from "axios";
 import "../css/MainMenu.css";
 
-export default function MainMenu({ onLogout, currentUser }) {
+export default function MainMenu({ currentUser, onLogout }) {
   const navigate = useNavigate();
   const [hoveredBtn, setHoveredBtn] = useState(null);
 
@@ -12,24 +12,39 @@ export default function MainMenu({ onLogout, currentUser }) {
     navigate(`/solo-game/${currentUser.id}`);
   };
 
+   const handleLogout = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (token) {
+        await axios.post(
+          "http://localhost:8080/api/auth/logout",
+          {},
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      }
+    } catch (err) {
+      console.error("Error logging out:", err);
+    } finally {
+      localStorage.removeItem("token");
+      if (onLogout) onLogout(); // reset state ở App
+      navigate("/login");
+    }
+  };
+
   const menuItems = [
     { id: 1, label: "Solo", icon: "🎮", onClick: goToSoloGame },
-    { id: 2, label: "Multiplayer", icon: "👥", onClick: () => navigate("/rooms") }, // ✅ Chuyển hướng tới Room page
+    { id: 2, label: "Multiplayer", icon: "👥", onClick: () => navigate("/rooms") },
     { id: 3, label: "Profile", icon: "👤", onClick: () => navigate("/profile") },
   ];
 
   return (
     <div className="mainmenu-page">
-      {/* Animated gradient blobs */}
       <div className="blob blob-1"></div>
       <div className="blob blob-2"></div>
       <div className="blob blob-3"></div>
-
-      {/* Grid overlay */}
       <div className="grid-overlay"></div>
 
       <div className="mainmenu-container">
-        {/* Header */}
         <div className="header-section">
           <div className="logo-box">
             <span className="logo-icon">🎮</span>
@@ -41,7 +56,6 @@ export default function MainMenu({ onLogout, currentUser }) {
           )}
         </div>
 
-        {/* Menu Buttons */}
         <div className="menu-buttons">
           {menuItems.map((item) => (
             <button
@@ -61,7 +75,7 @@ export default function MainMenu({ onLogout, currentUser }) {
         {/* Logout Button */}
         <button
           className="menu-btn logout-btn enhanced-btn"
-          onClick={onLogout}
+          onClick={handleLogout}
           onMouseEnter={() => setHoveredBtn("logout")}
           onMouseLeave={() => setHoveredBtn(null)}
         >
@@ -69,7 +83,6 @@ export default function MainMenu({ onLogout, currentUser }) {
           <span className="btn-label">Logout</span>
         </button>
 
-        {/* Stats Footer */}
         <div className="stats-footer">
           <div className="stat-item">
             <span className="stat-value">∞</span>

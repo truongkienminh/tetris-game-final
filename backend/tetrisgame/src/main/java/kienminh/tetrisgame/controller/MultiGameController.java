@@ -1,5 +1,6 @@
 package kienminh.tetrisgame.controller;
 
+import kienminh.tetrisgame.dto.GameStateDTO;
 import kienminh.tetrisgame.dto.RoomDTO;
 import kienminh.tetrisgame.model.game.GameState;
 import kienminh.tetrisgame.service.impl.MultiGameServiceImpl;
@@ -9,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/multigame")
@@ -30,39 +32,41 @@ public class MultiGameController {
     // 🧱 HÀNH ĐỘNG CỦA NGƯỜI CHƠI
     // ==============================================================
     @PostMapping("/player/{playerId}/moveLeft")
-    public ResponseEntity<GameState> moveLeft(@PathVariable Long playerId) {
-        return ResponseEntity.ok(multiGameService.moveLeft(playerId));
+    public ResponseEntity<GameStateDTO> moveLeft(@PathVariable Long playerId) {
+        GameState state = multiGameService.moveLeft(playerId);
+        return ResponseEntity.ok(GameMapper.toDTO(state));
     }
 
     @PostMapping("/player/{playerId}/moveRight")
-    public ResponseEntity<GameState> moveRight(@PathVariable Long playerId) {
-        return ResponseEntity.ok(multiGameService.moveRight(playerId));
+    public ResponseEntity<GameStateDTO> moveRight(@PathVariable Long playerId) {
+        GameState state = multiGameService.moveRight(playerId);
+        return ResponseEntity.ok(GameMapper.toDTO(state));
     }
 
     @PostMapping("/player/{playerId}/rotate")
-    public ResponseEntity<GameState> rotate(@PathVariable Long playerId) {
-        return ResponseEntity.ok(multiGameService.rotate(playerId));
+    public ResponseEntity<GameStateDTO> rotate(@PathVariable Long playerId) {
+        GameState state = multiGameService.rotate(playerId);
+        return ResponseEntity.ok(GameMapper.toDTO(state));
     }
 
     @PostMapping("/player/{playerId}/drop")
-    public ResponseEntity<GameState> drop(@PathVariable Long playerId) {
-        return ResponseEntity.ok(multiGameService.drop(playerId));
+    public ResponseEntity<GameStateDTO> drop(@PathVariable Long playerId) {
+        GameState state = multiGameService.drop(playerId);
+        return ResponseEntity.ok(GameMapper.toDTO(state));
     }
 
     // ==============================================================
     // ⏱️ API: Tick thủ công từ người chơi
     // ==============================================================
     @PostMapping("/player/{playerId}/tick")
-    public ResponseEntity<GameState> tick(@PathVariable Long playerId) {
+    public ResponseEntity<GameStateDTO> tick(@PathVariable Long playerId) {
         try {
             GameState state = multiGameService.tick(playerId);
-            return ResponseEntity.ok(state);
+            return ResponseEntity.ok(GameMapper.toDTO(state));
         } catch (IllegalStateException e) {
-            return ResponseEntity.status(400)
-                    .body(null);
+            return ResponseEntity.status(400).body(null);
         } catch (Exception e) {
-            return ResponseEntity.status(500)
-                    .body(null);
+            return ResponseEntity.status(500).body(null);
         }
     }
 
@@ -83,14 +87,13 @@ public class MultiGameController {
         }
     }
 
-    @GetMapping("/states")
-    public ResponseEntity<Map<Long, GameState>> getAllStates() {
-        return ResponseEntity.ok(multiGameService.getAllStates());
-    }
 
     @GetMapping("/room/{roomId}/states")
-    public ResponseEntity<Map<Long, GameState>> getAllStatesByRoom(@PathVariable Long roomId) {
-        return ResponseEntity.ok(multiGameService.getAllStatesByRoom(roomId));
+    public ResponseEntity<Map<Long, GameStateDTO>> getAllStatesByRoom(@PathVariable Long roomId) {
+        Map<Long, GameState> states = multiGameService.getAllStatesByRoom(roomId);
+        Map<Long, GameStateDTO> dtoMap = states.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> GameMapper.toDTO(e.getValue())));
+        return ResponseEntity.ok(dtoMap);
     }
 
     @GetMapping("/player/{playerId}/isGameOver")

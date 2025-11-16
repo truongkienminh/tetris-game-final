@@ -87,4 +87,11 @@ public class    AuthServiceImpl implements AuthService, UserDetailsService {
         String username = auth.getName();
         return userRepository.findByUsername(username).orElse(null);
     }
+
+    @Override
+    public void logout(String token) {
+        // Không làm gì nếu không blacklist
+        System.out.println("User logged out, token: " + token);
+    }
+
 }

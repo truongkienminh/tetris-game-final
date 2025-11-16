@@ -226,10 +226,6 @@ public class MultiGameServiceImpl implements GameService {
         return playerStates.get(playerId);
     }
 
-    /** Lấy toàn bộ gameState của tất cả người chơi. */
-    public Map<Long, GameState> getAllStates() {
-        return Collections.unmodifiableMap(playerStates);
-    }
 
     /** Lấy toàn bộ gameState của người chơi trong một phòng cụ thể. */
     public Map<Long, GameState> getAllStatesByRoom(Long roomId) {

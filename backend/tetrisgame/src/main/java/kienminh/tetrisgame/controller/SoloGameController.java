@@ -3,6 +3,7 @@ package kienminh.tetrisgame.controller;
 import kienminh.tetrisgame.dto.GameStateDTO;
 import kienminh.tetrisgame.model.game.GameState;
 import kienminh.tetrisgame.service.interfaces.GameService;
+import kienminh.tetrisgame.service.interfaces.PlayerService;
 import kienminh.tetrisgame.util.GameMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -16,12 +17,16 @@ import java.util.Map;
 public class SoloGameController {
 
     private final GameService soloGameService;
+    private final PlayerService playerService;
 
-    @PostMapping("/{playerId}/start")
-    public ResponseEntity<GameStateDTO> start(@PathVariable Long playerId) {
-        GameState state = soloGameService.startGame(playerId);
-        return ResponseEntity.ok(GameMapper.toDTO(state));
+    @PostMapping("/start/{userId}")
+    public ResponseEntity<GameStateDTO> start(@PathVariable Long userId) {
+        GameState state = soloGameService.startGame(userId);
+        GameStateDTO gameStateDTO = GameMapper.toDTO(state);
+        gameStateDTO.setPlayerId(playerService.getPlayerByUserId(userId).getId());
+        return ResponseEntity.ok(gameStateDTO);
     }
+
 
 
     @PostMapping("/{playerId}/action")

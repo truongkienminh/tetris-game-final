@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { loginUser } from "../api";
-import "../css/Register.css"; // dùng cùng style với trang register
+import { loginUser, getCurrentUser } from "../api"; // import getCurrentUser
+import "../css/Register.css";
 import Logo from "../assets/logo.png";
 
 export default function Login({ onLogin }) {
@@ -20,9 +20,18 @@ export default function Login({ onLogin }) {
     try {
       setIsLoading(true);
       setError("");
+
+      // 1️⃣ Login và lấy token
       const res = await loginUser(username, password);
       localStorage.setItem("token", res.data.token);
-      onLogin(res.data.user);
+
+      // 2️⃣ Fetch lại user hiện tại bằng token mới
+      const userRes = await getCurrentUser();
+      const user = userRes.data;
+
+      // 3️⃣ Cập nhật state và chuyển hướng
+      onLogin(user);
+      navigate("/mainmenu");
     } catch (err) {
       console.error(err);
       setError("Login failed. Please check your username/password.");
@@ -32,15 +41,11 @@ export default function Login({ onLogin }) {
   };
 
   const goToRegister = () => navigate("/register");
-
-  const handleKeyPress = (e) => {
-    if (e.key === "Enter") handleLogin();
-  };
+  const handleKeyPress = (e) => e.key === "Enter" && handleLogin();
 
   return (
     <div className="register-container">
       <div className="register-bg-effect"></div>
-
       <div className="register-card">
         {/* Header */}
         <div className="register-header">
@@ -99,12 +104,10 @@ export default function Login({ onLogin }) {
         </div>
 
         {/* Divider */}
-        <div className="divider">
-          <span>OR</span>
-        </div>
+        <div className="divider"><span>OR</span></div>
 
         <button onClick={goToRegister} className="btn-login">
-            <span>Don’t have an account?</span>
+          <span>Don’t have an account?</span>
           <span className="login-link">Create Account</span>
         </button>
 

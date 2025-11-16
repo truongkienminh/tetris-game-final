@@ -79,11 +79,13 @@ export default function Lobby({ currentUser }) {
 
   useEffect(() => {
     fetchRoom();
-    const interval = setInterval(fetchRoom, 3000);
+    const interval = setInterval(fetchRoom, 3000); // cập nhật lobby mỗi 3s
     return () => clearInterval(interval);
   }, [roomId]);
 
-  const isHost = currentUser?.username === room?.hostUsername;
+  // Check if current user is host
+  const isHost = room && currentUser &&
+    currentUser.username?.toLowerCase() === room.hostUsername?.toLowerCase();
 
   const handleLeave = async () => {
     try {
@@ -100,21 +102,26 @@ export default function Lobby({ currentUser }) {
       return;
     }
     try {
-      await MULTIGAME_API.post(`/start/${roomId}`);
-      // Đồng bộ: tất cả người chơi sẽ thấy game đã bắt đầu khi fetchRoom refresh
+      const res = await MULTIGAME_API.post(`/start/${roomId}`);
+      const updatedRoom = res.data; // backend trả về room với roomStatus mới
+      setRoom(updatedRoom);
+
+      // Redirect ngay nếu game đã bắt đầu
+      if (updatedRoom.roomStatus?.toUpperCase() === "PLAYING") {
+        navigate(`/multigame/${roomId}`);
+      }
     } catch (err) {
       console.error("Error starting game:", err);
       alert("Failed to start game.");
     }
   };
 
-  // Nếu game đã STARTED → tự redirect
- useEffect(() => {
-  if (room?.roomStatus?.toUpperCase() === "PLAYING") {
-    navigate(`/multigame/${roomId}`);
-  }
-}, [room, navigate, roomId]);
-
+  // Redirect nếu room đã đang PLAYING (dành cho player khác)
+  useEffect(() => {
+    if (room?.roomStatus?.toUpperCase() === "PLAYING") {
+      navigate(`/multigame/${roomId}`);
+    }
+  }, [room, navigate, roomId]);
 
   if (loading) {
     return (

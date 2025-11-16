@@ -16,6 +16,6 @@ public final class GameMapper {
         Block nx = state.getBoard() != null ? state.getBoard().getNextBlock() : null;
         if (cur != null) current = cur.getType().name();
         if (nx != null) next = nx.getType().name();
-        return new GameStateDTO(boardSnapshot, state.getScore(), state.getLevel(), state.getStatus().name(), current, next);
+        return new GameStateDTO(boardSnapshot, state.getScore(), state.getLevel(), state.getStatus().name(), current, next, null);
     }
 }
