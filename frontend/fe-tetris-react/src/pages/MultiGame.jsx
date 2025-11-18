@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
 import "../css/MultiGame.css";
 
 const BLOCK_COLORS = {
@@ -36,7 +38,7 @@ export default function MultiGame() {
   const [isCurrentPlayerGameOver, setIsCurrentPlayerGameOver] = useState(false);
 
   const intervalRef = useRef(null);
-  const wsRef = useRef(null);
+  const stompClientRef = useRef(null);
 
   const API = axios.create({ baseURL: "http://localhost:8080/api" });
   API.interceptors.request.use((config) => {
@@ -45,82 +47,92 @@ export default function MultiGame() {
     return config;
   });
 
-  // ===== Setup WebSocket =====
+  // ===== STOMP + SockJS setup =====
   const setupWebSocket = useCallback(() => {
     const token = localStorage.getItem("token");
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws?token=${token}`;
+    // connect to backend Spring Boot endpoint (use absolute backend URL)
+    const socket = new SockJS("http://localhost:8080/ws");
+    const client = new Client({
+      webSocketFactory: () => socket,
+      connectHeaders: {
+        Authorization: `Bearer ${token}`,
+      },
+      reconnectDelay: 5000,
+      onConnect: () => {
+        console.log("✅ STOMP connected for room:", roomId);
 
-    wsRef.current = new WebSocket(wsUrl);
+        // Subscribe to room topic
+        client.subscribe(`/topic/room/${roomId}`, (frame) => {
+          try {
+            const message = JSON.parse(frame.body);
 
-    wsRef.current.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
+            // Handle player game over
+            if (message.type === "PLAYER_GAME_OVER") {
+              console.log("✅ Player game over:", message.playerName, "Score:", message.score);
+              setGameOverPlayers((prev) => new Set([...prev, message.playerId]));
 
-        // ✅ Handle player game over
-        if (message.type === "PLAYER_GAME_OVER") {
-          console.log("✅ Player game over:", message.playerName, "Score:", message.score);
-
-          setGameOverPlayers((prev) => new Set([...prev, message.playerId]));
-
-          // Update with final board state
-          if (message.finalState) {
-            setGameStates((prev) => ({
-              ...prev,
-              [message.playerId]: {
-                ...prev[message.playerId],
-                board: message.finalState.board,
-                score: message.finalState.score,
-                level: message.finalState.level,
-                status: "GAME_OVER"
+              if (message.finalState) {
+                setGameStates((prev) => ({
+                  ...prev,
+                  [message.playerId]: {
+                    ...prev[message.playerId],
+                    board: message.finalState.board,
+                    score: message.finalState.score,
+                    level: message.finalState.level,
+                    status: "GAME_OVER",
+                  },
+                }));
               }
-            }));
-          }
-        }
-        // ✅ Handle room game over with rankings
-        else if (message.type === "ROOM_GAME_OVER") {
-          console.log("✅ Room game over - Rankings received");
-          setRoomGameOver(true);
-          if (message.rankings) {
-            setRankings(message.rankings);
-          }
-        }
-        // Handle regular tick updates
-        else if (message.type === "TICK_UPDATE") {
-          setGameStates((prev) => ({
-            ...prev,
-            [message.playerId]: {
-              board: message.board,
-              score: message.score,
-              level: message.level,
-              status: message.status,
-              nextBlock: message.nextBlock
             }
-          }));
-        }
-      } catch (e) {
-        console.error("❌ WebSocket message error:", e);
-      }
-    };
+            // Handle room game over with rankings
+            else if (message.type === "ROOM_GAME_OVER") {
+              console.log("✅ Room game over - Rankings received");
+              setRoomGameOver(true);
+              if (message.rankings) setRankings(message.rankings);
+            }
+            // Handle tick updates
+            else if (message.type === "TICK_UPDATE") {
+              setGameStates((prev) => ({
+                ...prev,
+                [message.playerId]: {
+                  board: message.board,
+                  score: message.score,
+                  level: message.level,
+                  status: message.status,
+                  nextBlock: message.nextBlock,
+                },
+              }));
+            }
+            // Handle game start (optional) - ensure client navigates if not already
+            else if (message.type === "GAME_START" && String(message.roomId) === String(roomId)) {
+              console.log("📩 GAME_START received, navigating to multigame route.");
+              navigate(`/multigame/${roomId}`);
+            }
+          } catch (e) {
+            console.error("❌ STOMP message parse error:", e);
+          }
+        });
+      },
+      onStompError: (frame) => {
+        console.error("❌ STOMP error:", frame);
+      },
+      onWebSocketClose: (evt) => {
+        console.warn("⚠️ STOMP websocket closed", evt);
+      },
+    });
 
-    wsRef.current.onerror = (error) => {
-      console.error("❌ WebSocket error:", error);
-    };
+    client.activate();
+    stompClientRef.current = client;
 
-    wsRef.current.onopen = () => {
-      console.log("✅ WebSocket connected for room:", roomId);
-    };
-
-    wsRef.current.onclose = () => {
-      console.log("⚠️ WebSocket disconnected");
-    };
-
+    // cleanup function returned if caller needs to use it
     return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
+      try {
+        client.deactivate();
+      } catch (e) {
+        console.warn("Error deactivating STOMP client:", e);
       }
     };
-  }, [roomId]);
+  }, [roomId, navigate]);
 
   // ===== Fetch current player =====
   const fetchCurrentPlayer = useCallback(async () => {
@@ -209,8 +221,12 @@ export default function MultiGame() {
   // ===== Handle back to lobby =====
   const handleBackToLobby = useCallback(async () => {
     stopSync();
-    if (wsRef.current) {
-      wsRef.current.close();
+    if (stompClientRef.current) {
+      try {
+        await stompClientRef.current.deactivate();
+      } catch (e) {
+        console.warn("Error deactivating stomp client:", e);
+      }
     }
     navigate(`/lobby/${roomId}`);
   }, [stopSync, navigate, roomId]);
@@ -255,18 +271,28 @@ export default function MultiGame() {
     fetchPlayers();
     fetchStates();
     startSync();
+
     const cleanupWs = setupWebSocket();
 
     return () => {
       stopSync();
-      cleanupWs();
+      // cleanup stomp
+      try {
+        if (stompClientRef.current) stompClientRef.current.deactivate();
+      } catch (e) {
+        console.warn("Error deactivating stomp client on unmount:", e);
+      }
+      // call cleanup returned by setupWebSocket (if exists)
+      if (typeof cleanupWs === "function") cleanupWs();
     };
   }, [fetchCurrentPlayer, fetchPlayers, fetchStates, startSync, stopSync, setupWebSocket]);
+
   useEffect(() => {
     console.log("🔍 Game over players updated:", Array.from(gameOverPlayers));
     console.log("📊 Current room game over status:", roomGameOver);
     console.log("📋 Rankings:", rankings);
   }, [gameOverPlayers, roomGameOver, rankings]);
+
   // ===== Render board =====
   const renderBoard = (state) => {
     if (!state?.board) return <div className="solo-game-board">Loading...</div>;
@@ -328,12 +354,9 @@ export default function MultiGame() {
                 {players.map((p) => (
                   <div
                     key={p.id}
-                    className={`player-status-item ${gameOverPlayers.has(p.id) ? "finished" : "playing"
-                      }`}
+                    className={`player-status-item ${gameOverPlayers.has(p.id) ? "finished" : "playing"}`}
                   >
-                    <span className="status-icon">
-                      {gameOverPlayers.has(p.id) ? "✅" : "🎮"}
-                    </span>
+                    <span className="status-icon">{gameOverPlayers.has(p.id) ? "✅" : "🎮"}</span>
                     <span className="status-name">{p.username}</span>
                   </div>
                 ))}
@@ -395,8 +418,7 @@ export default function MultiGame() {
           return (
             <div
               key={p.id}
-              className={`multi-game-card ${isCurrent ? "current-player" : ""} ${isPlayerGameOver ? "game-over-card" : ""
-                }`}
+              className={`multi-game-card ${isCurrent ? "current-player" : ""} ${isPlayerGameOver ? "game-over-card" : ""}`}
             >
               <div className="board-header">
                 <h3 className="board-player-name">
@@ -427,21 +449,9 @@ export default function MultiGame() {
 
               {renderBoard(state)}
 
-              <div
-                className="solo-game-right-panel"
-                style={{ display: "flex", flexDirection: "column", gap: 20, gridColumn: 3, gridRow: 2 }}
-              >
+              <div className="solo-game-right-panel" style={{ display: "flex", flexDirection: "column", gap: 20, gridColumn: 3, gridRow: 2 }}>
                 <div>
-                  <h3
-                    style={{
-                      marginBottom: 10,
-                      fontSize: 14,
-                      fontWeight: 700,
-                      textTransform: "uppercase",
-                      letterSpacing: 1.5,
-                      color: "#ff6a00",
-                    }}
-                  >
+                  <h3 style={{ marginBottom: 10, fontSize: 14, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1.5, color: "#ff6a00" }}>
                     Next Block
                   </h3>
                   {renderNextBlock(state?.nextBlock)}

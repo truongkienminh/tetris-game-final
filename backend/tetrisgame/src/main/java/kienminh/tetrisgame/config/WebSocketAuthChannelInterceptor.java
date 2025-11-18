@@ -37,8 +37,7 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
                         if (jwtUtil.validateToken(token)) {
                             var userDetails = org.springframework.security.core.userdetails.User
                                     .withUsername(username)
-                                    .password("")
-                                    .authorities("USER")
+                                    .password("")   
                                     .build();
                             var authToken = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                             SecurityContextHolder.getContext().setAuthentication(authToken);

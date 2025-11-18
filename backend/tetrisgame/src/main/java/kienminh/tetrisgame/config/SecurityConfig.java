@@ -81,7 +81,7 @@ public class SecurityConfig {
                                 "/api/auth/**",
                                 "/login", "/register",
                                 "/css/**", "/js/**", "/images/**", "/favicon.ico",
-                                "/swagger-ui/**", "/v3/api-docs/**"
+                                "/swagger-ui/**", "/v3/api-docs/**","/ws/**"
                         ).permitAll()
                         .anyRequest().authenticated() // các Thymeleaf pages
                 )

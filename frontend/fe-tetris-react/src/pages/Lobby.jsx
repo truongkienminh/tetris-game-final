@@ -1,7 +1,8 @@
-// Lobby.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
 
 // Axios cho Room API
 const ROOM_API = axios.create({
@@ -64,8 +65,11 @@ export default function Lobby({ currentUser }) {
   const navigate = useNavigate();
   const [room, setRoom] = useState(null);
   const [loading, setLoading] = useState(true);
+  const stompClientRef = useRef(null);
 
+  // ======================
   // Lấy thông tin room
+  // ======================
   const fetchRoom = async () => {
     try {
       const res = await ROOM_API.get(`/${roomId}`);
@@ -79,14 +83,19 @@ export default function Lobby({ currentUser }) {
 
   useEffect(() => {
     fetchRoom();
-    const interval = setInterval(fetchRoom, 3000); // cập nhật lobby mỗi 3s
+    const interval = setInterval(fetchRoom, 3000); // polling fallback
     return () => clearInterval(interval);
   }, [roomId]);
 
-  // Check if current user is host
+  // ======================
+  // Xác định host
+  // ======================
   const isHost = room && currentUser &&
     currentUser.username?.toLowerCase() === room.hostUsername?.toLowerCase();
 
+  // ======================
+  // Rời room
+  // ======================
   const handleLeave = async () => {
     try {
       await ROOM_API.post(`/${roomId}/leave`);
@@ -96,33 +105,81 @@ export default function Lobby({ currentUser }) {
     }
   };
 
+  // ======================
+  // Host start game
+  // ======================
   const handleStartGame = async () => {
     if (!isHost) {
       alert("Only host can start the game!");
       return;
     }
     try {
-      const res = await MULTIGAME_API.post(`/start/${roomId}`);
-      const updatedRoom = res.data; // backend trả về room với roomStatus mới
-      setRoom(updatedRoom);
-
-      // Redirect ngay nếu game đã bắt đầu
-      if (updatedRoom.roomStatus?.toUpperCase() === "PLAYING") {
-        navigate(`/multigame/${roomId}`);
-      }
+      await MULTIGAME_API.post(`/start/${roomId}`);
+      // Host cũng redirect ngay
+      navigate(`/multigame/${roomId}`);
     } catch (err) {
       console.error("Error starting game:", err);
       alert("Failed to start game.");
     }
   };
 
-  // Redirect nếu room đã đang PLAYING (dành cho player khác)
-  useEffect(() => {
-    if (room?.roomStatus?.toUpperCase() === "PLAYING") {
-      navigate(`/multigame/${roomId}`);
-    }
-  }, [room, navigate, roomId]);
+  // ======================
+  // WebSocket STOMP realtime
+  // ======================
+  // ======================
+// WebSocket STOMP realtime
+// ======================
+useEffect(() => {
+  if (!roomId) return;
 
+  const token = localStorage.getItem("token");
+
+  // 1) Tạo SockJS tunnel (KHÔNG truyền token trong URL)
+  const socket = new SockJS("http://localhost:8080/ws");
+
+  // 2) Tạo STOMP client
+  const stompClient = new Client({
+    webSocketFactory: () => socket,
+    connectHeaders: {
+      Authorization: `Bearer ${token}`,   // <-- TOKEN TRONG HEADER
+    },
+    reconnectDelay: 5000,
+    debug: (str) => console.log(str), // thích thì giữ
+  });
+
+  stompClientRef.current = stompClient;
+
+  // 3) Khi kết nối thành công
+  stompClient.onConnect = () => {
+    console.log("✅ Connected to STOMP WebSocket");
+
+    // Nhận event GAME_START từ server
+    stompClient.subscribe(`/topic/room/${roomId}`, (message) => {
+      const data = JSON.parse(message.body);
+
+      console.log("📩 WS message:", data);
+
+      if (data.type === "GAME_START" && data.roomId === Number(roomId)) {
+        console.log("🎮 Game started! Redirecting...");
+        navigate(`/multigame/${roomId}`);
+      }
+    });
+  };
+
+  stompClient.onStompError = (err) => {
+    console.error("❌ STOMP error:", err);
+  };
+
+  stompClient.activate();
+
+  return () => {
+    stompClient.deactivate();
+  };
+}, [roomId, navigate]);
+
+  // ======================
+  // Render
+  // ======================
   if (loading) {
     return (
       <>
