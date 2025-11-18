@@ -1,17 +1,22 @@
 package kienminh.tetrisgame.model.game;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import kienminh.tetrisgame.model.entity.Player;
 import kienminh.tetrisgame.model.game.enums.GameStatus;
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class GameState {
 
     private Board board;
     private int score;
     private int level;
     private GameStatus status;
+    private Player player;
+    private String nextBlock;
 
     public GameState() {
         start();
@@ -23,10 +28,16 @@ public class GameState {
         this.score = 0;
         this.level = 1;
         this.status = GameStatus.PLAYING;
+        updateNextBlock();
     }
 
     public void reset() {
         start();
+    }
+
+    private void updateNextBlock() {
+        Block next = board.getNextBlockCopy();
+        this.nextBlock = next != null ? next.getType().name() : null;
     }
 
     public synchronized void moveLeft() {
@@ -46,40 +57,58 @@ public class GameState {
 
     public synchronized void drop() {
         if (!isPlaying()) return;
-        // drop toàn bộ xuống đáy — lockBlock() sẽ được gọi trong moveDown()
         board.dropDown();
 
-        // Sau khi lock: clear lines, cộng điểm +10 cho drop, kiểm tra level, spawn hoặc game over
         int lines = board.clearLines();
         if (lines > 0) {
             score += computeScoreForLines(lines);
         }
 
-        // cộng điểm cố định cho drop (theo yêu cầu)
         score += 10;
 
         levelUpCheck();
 
-        // spawn hoặc game over
+        // ✅ Check if spawn failed (block collision) → GAME OVER
         boolean ok = board.spawnBlock();
-        if (!ok) status = GameStatus.GAME_OVER;
+        updateNextBlock();
+        if (!ok) {
+            status = GameStatus.GAME_OVER;
+            return;
+        }
+
+        // ✅ Check if spawned block is already out of bounds
+        if (board.isBlockTopOut()) {
+            status = GameStatus.GAME_OVER;
+        }
     }
 
-    /** Tick tự động từ game loop */
     public synchronized void tick() {
         if (!isPlaying()) return;
 
         boolean moved = board.moveDown();
         if (!moved) {
-            // Block đã lock bên trong moveDown()
+            // Block hit ground or obstacle
             int lines = board.clearLines();
             if (lines > 0) {
                 score += computeScoreForLines(lines);
                 levelUpCheck();
             }
 
+            // ✅ Try to spawn next block
             boolean ok = board.spawnBlock();
-            if (!ok) status = GameStatus.GAME_OVER;
+            updateNextBlock();
+
+            if (!ok) {
+                // Spawn failed due to collision
+                status = GameStatus.GAME_OVER;
+                return;
+            }
+
+            // ✅ Check if spawned block is already out of bounds (top out)
+            if (board.isBlockTopOut()) {
+                status = GameStatus.GAME_OVER;
+                return;
+            }
         }
     }
 
@@ -106,7 +135,7 @@ public class GameState {
         return status == GameStatus.GAME_OVER;
     }
 
-    public Block getNextBlock(){
+    public Block getNextBlock() {
         return board.getNextBlockCopy();
     }
 }

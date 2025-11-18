@@ -37,6 +37,9 @@ public class SoloGameServiceImpl implements GameService {
     /** Trạng thái từng người chơi */
     private final Map<Long, GameState> gameStates = new ConcurrentHashMap<>();
 
+    /** ✅ Cache final game state for 30 seconds after game over */
+    private final Map<Long, GameState> finalGameStates = new ConcurrentHashMap<>();
+
     /** Task đang chạy tự động tick */
     private final Map<Long, ScheduledFuture<?>> scheduledTasks = new ConcurrentHashMap<>();
 
@@ -54,6 +57,9 @@ public class SoloGameServiceImpl implements GameService {
         state.start();
         gameStates.put(player.getId(), state);
 
+        // ✅ Clear final state cache when starting new game
+        finalGameStates.remove(player.getId());
+
         // Bắt đầu tick tự động
         scheduleTick(player.getId());
 
@@ -66,7 +72,7 @@ public class SoloGameServiceImpl implements GameService {
         return Math.max(200, 1000 - (level - 1) * 150);
     }
 
-    /** ⏱️ Tạo hoặc cập nhật task tick cho player */
+    /** ⏸️ Tạo hoặc cập nhật task tick cho player */
     private void scheduleTick(Long playerId) {
         GameState state = gameStates.get(playerId);
         if (state == null) return;
@@ -74,7 +80,7 @@ public class SoloGameServiceImpl implements GameService {
         // Hủy task cũ nếu có
         ScheduledFuture<?> oldTask = scheduledTasks.remove(playerId);
         if (oldTask != null && !oldTask.isCancelled()) {
-            oldTask.cancel(false); // ✅ Đổi từ true → false để đợi task hoàn thành
+            oldTask.cancel(false);
         }
 
         long interval = getIntervalForLevel(state.getLevel());
@@ -89,11 +95,11 @@ public class SoloGameServiceImpl implements GameService {
 
                 if (current.isGameOver()) {
                     cancelTick(playerId);
+                    handleGameOver(playerId, current);
                     return;
                 }
 
-                // ✅ KIỂM TRA TRƯỚC KHI TICK
-                // Nếu level đã thay đổi, reschedule và KHÔNG tick lần này
+                // ✅ Check if game state still exists before ticking
                 int currentLevel = current.getLevel();
                 long expectedInterval = getIntervalForLevel(currentLevel);
                 Long storedInterval = currentIntervals.get(playerId);
@@ -103,10 +109,10 @@ public class SoloGameServiceImpl implements GameService {
                             currentLevel, playerId);
                     cancelTick(playerId);
                     scheduleTick(playerId);
-                    return; // ✅ RETURN sớm, không tick lần này
+                    return;
                 }
 
-                // ✅ CHỈ TICK MỘT LẦN
+                // ✅ Execute tick
                 tick(playerId);
 
             } catch (Exception e) {
@@ -122,22 +128,11 @@ public class SoloGameServiceImpl implements GameService {
     private void cancelTick(Long playerId) {
         ScheduledFuture<?> future = scheduledTasks.remove(playerId);
         if (future != null && !future.isCancelled()) {
-            future.cancel(false); // ✅ Đổi từ true → false
+            future.cancel(false);
             logger.info("⏹️ Tick cancelled for player {}", playerId);
         }
         currentIntervals.remove(playerId);
     }
-    /**
-     * Lấy viên block tiếp theo của player, chưa xuất hiện trên board
-     */
-    public Block getNextBlock(Long playerId) {
-        GameState state = gameStates.get(playerId);
-        if (state == null) {
-            throw new IllegalStateException("Game not started for player " + playerId);
-        }
-        return state.getNextBlock(); // trả về Block tiếp theo
-    }
-
 
     /** 🧱 Tick logic */
     @Override
@@ -146,6 +141,7 @@ public class SoloGameServiceImpl implements GameService {
         state.tick();
 
         if (state.isGameOver()) {
+            cancelTick(playerId);
             handleGameOver(playerId, state);
         }
 
@@ -162,9 +158,19 @@ public class SoloGameServiceImpl implements GameService {
             logger.error("❌ Failed to save score for player {}: {}", playerId, e.getMessage(), e);
         }
 
+        // ✅ Cache final state before removing
+        finalGameStates.put(playerId, state);
+        logger.info("✅ Final game state cached for player {}", playerId);
+
         gameStates.remove(playerId);
         cancelTick(playerId);
         logger.info("💀 Game over for player {}", playerId);
+
+        // ✅ Schedule cleanup of final state after 30 seconds
+        scheduler.schedule(() -> {
+            finalGameStates.remove(playerId);
+            logger.info("🗑️ Final game state cleaned up for player {}", playerId);
+        }, 30, TimeUnit.SECONDS);
     }
 
     // --- Các hành động từ người chơi ---
@@ -193,6 +199,12 @@ public class SoloGameServiceImpl implements GameService {
     public GameState drop(Long playerId) {
         GameState state = getState(playerId);
         state.drop();
+
+        if (state.isGameOver()) {
+            cancelTick(playerId);
+            handleGameOver(playerId, state);
+        }
+
         return state;
     }
 
@@ -203,9 +215,21 @@ public class SoloGameServiceImpl implements GameService {
 
     @Override
     public GameState getState(Long playerId) {
+        // ✅ Try to get active game state first
         GameState state = gameStates.get(playerId);
-        if (state == null) throw new IllegalStateException("Game not started for player " + playerId);
-        return state;
+        if (state != null) {
+            return state;
+        }
+
+        // ✅ If not active, try to get final (cached) game state
+        state = finalGameStates.get(playerId);
+        if (state != null) {
+            logger.info("ℹ️ Returning cached final game state for player {}", playerId);
+            return state;
+        }
+
+        // ✅ If neither exists, throw error
+        throw new IllegalStateException("Game not started for player " + playerId);
     }
 
     @PreDestroy

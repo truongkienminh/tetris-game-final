@@ -1,3 +1,6 @@
+// ============================================================
+// FILE 1: MultiGameController.java
+// ============================================================
 package kienminh.tetrisgame.controller;
 
 import kienminh.tetrisgame.dto.GameStateDTO;
@@ -71,7 +74,7 @@ public class MultiGameController {
     }
 
     // ==============================================================
-    // 🔍 TRẠNG THÁI GAME
+    // 📖 TRẠNG THÁI GAME
     // ==============================================================
     @GetMapping("/player/{playerId}/state")
     public ResponseEntity<?> getPlayerState(@PathVariable Long playerId) {
@@ -87,7 +90,6 @@ public class MultiGameController {
         }
     }
 
-
     @GetMapping("/room/{roomId}/states")
     public ResponseEntity<Map<Long, GameStateDTO>> getAllStatesByRoom(@PathVariable Long roomId) {
         Map<Long, GameState> states = multiGameService.getAllStatesByRoom(roomId);
@@ -99,5 +101,18 @@ public class MultiGameController {
     @GetMapping("/player/{playerId}/isGameOver")
     public ResponseEntity<Boolean> isGameOver(@PathVariable Long playerId) {
         return ResponseEntity.ok(multiGameService.isGameOver(playerId));
+    }
+
+    // ==============================================================
+    // ✅ NEW: Check room completion status
+    // ==============================================================
+    @GetMapping("/room/{roomId}/isComplete")
+    public ResponseEntity<Boolean> isRoomComplete(@PathVariable Long roomId) {
+        return ResponseEntity.ok(multiGameService.isRoomComplete(roomId));
+    }
+
+    @GetMapping("/room/{roomId}/rankings")
+    public ResponseEntity<?> getRoomRankings(@PathVariable Long roomId) {
+        return ResponseEntity.ok(multiGameService.getRoomRankings(roomId));
     }
 }

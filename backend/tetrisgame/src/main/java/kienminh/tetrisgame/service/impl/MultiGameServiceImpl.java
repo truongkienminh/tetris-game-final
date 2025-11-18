@@ -2,10 +2,12 @@ package kienminh.tetrisgame.service.impl;
 
 import jakarta.annotation.PreDestroy;
 import kienminh.tetrisgame.dto.PlayerDTO;
+import kienminh.tetrisgame.dto.RankingDTO;
 import kienminh.tetrisgame.dto.RoomDTO;
 import kienminh.tetrisgame.model.entity.Player;
 import kienminh.tetrisgame.model.entity.Room;
 import kienminh.tetrisgame.model.game.GameState;
+import kienminh.tetrisgame.model.game.enums.GameStatus;
 import kienminh.tetrisgame.model.game.enums.RoomStatus;
 import kienminh.tetrisgame.repository.PlayerRepository;
 import kienminh.tetrisgame.repository.RoomRepository;
@@ -19,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 @Service("multiGameService")
 @RequiredArgsConstructor
@@ -32,27 +35,32 @@ public class MultiGameServiceImpl implements GameService {
     private final UserScoreService userScoreService;
     private final SimpMessagingTemplate messagingTemplate;
 
-    /** 🧠 Trạng thái game của từng player */
+    /** 🧠 Game state for each player */
     private final Map<Long, GameState> playerStates = new ConcurrentHashMap<>();
 
-    /** ⏱️ Scheduler tick cho tất cả người chơi */
+    /** ⏱️ Scheduler for ticking all players */
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(8);
 
-    /** Task đang chạy của từng player */
+    /** Scheduled tasks for each player */
     private final Map<Long, ScheduledFuture<?>> scheduledTasks = new ConcurrentHashMap<>();
 
-    /** Tính tốc độ rơi dựa theo level */
+    /** Track finished players per room */
+    private final Map<Long, Set<Long>> finishedPlayers = new ConcurrentHashMap<>();
+
+    /** Cache rankings per room */
+    private final Map<Long, List<RankingDTO>> roomRankings = new ConcurrentHashMap<>();
+
+    /** Calculate fall speed based on level */
     private long getIntervalForLevel(int level) {
         return Math.max(200, 1000 - (level - 1) * 150);
     }
 
     // ==============================================================
-    // 🏁 BẮT ĐẦU GAME MULTIPLAYER
+    // 🎮 START MULTIPLAYER GAME
     // ==============================================================
 
     @Override
     public GameState startGame(Long playerId) {
-        // Multiplayer không start riêng từng người chơi
         GameState state = playerStates.get(playerId);
         if (state == null) {
             state = new GameState();
@@ -66,18 +74,32 @@ public class MultiGameServiceImpl implements GameService {
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new IllegalArgumentException("Room not found"));
 
-        // Tạo GameState cho tất cả Player
+        // ✅ Clear old game states for all players
+        for (Player player : room.getPlayers()) {
+            cancelTick(player.getId());
+            playerStates.remove(player.getId());
+        }
+
+        // Initialize tracking for this room
+        finishedPlayers.remove(roomId);
+        roomRankings.remove(roomId);
+        finishedPlayers.put(roomId, ConcurrentHashMap.newKeySet());
+
+        // Create GameState for all players
         for (Player player : room.getPlayers()) {
             GameState state = new GameState();
             state.start();
             playerStates.put(player.getId(), state);
             scheduleTick(player.getId(), roomId);
         }
+
         room.setRoomStatus(RoomStatus.PLAYING);
-        // Gửi thông báo WebSocket
+
+        // Notify WebSocket
         messagingTemplate.convertAndSend("/topic/room/" + roomId, Map.of(
                 "type", "GAME_START",
-                "roomId", roomId
+                "roomId", roomId,
+                "message", "Game started!"
         ));
 
         logger.info("🎮 Multiplayer game started in room {}", roomId);
@@ -85,7 +107,7 @@ public class MultiGameServiceImpl implements GameService {
     }
 
     // ==============================================================
-    // ⏱️ Tick cho từng Player
+    // ⏱️ TICK SCHEDULER
     // ==============================================================
 
     private void scheduleTick(Long playerId, Long roomId) {
@@ -95,22 +117,32 @@ public class MultiGameServiceImpl implements GameService {
         long interval = getIntervalForLevel(state.getLevel());
         ScheduledFuture<?> future = scheduler.scheduleAtFixedRate(() -> {
             try {
+                // Tick the game
                 tick(playerId);
 
-                // Gửi snapshot realtime cho frontend
-                messagingTemplate.convertAndSend("/topic/player/" + playerId, Map.of(
-                        "type", "TICK_UPDATE",
-                        "playerId", playerId,
-                        "state", playerStates.get(playerId)
-                ));
+                // Get fresh state
+                GameState currentState = playerStates.get(playerId);
+                if (currentState == null) return;
 
-                // Nếu người chơi game over
-                if (state.isGameOver()) {
+                // ✅ IMMEDIATE game over check
+                if (currentState.isGameOver()) {
                     handlePlayerGameOver(playerId, roomId);
+                    return;
                 }
 
+                // Send tick update for ongoing game
+                messagingTemplate.convertAndSend("/topic/room/" + roomId, Map.of(
+                        "type", "TICK_UPDATE",
+                        "playerId", playerId,
+                        "score", currentState.getScore(),
+                        "level", currentState.getLevel(),
+                        "status", currentState.getStatus().name(),
+                        "board", currentState.getBoard().getBoardSnapshot(),
+                        "nextBlock", currentState.getNextBlock()
+                ));
+
             } catch (Exception e) {
-                logger.error("Tick error for player {}", playerId, e);
+                logger.error("❌ Tick error for player {}: {}", playerId, e.getMessage());
             }
         }, 0, interval, TimeUnit.MILLISECONDS);
 
@@ -126,7 +158,7 @@ public class MultiGameServiceImpl implements GameService {
     }
 
     // ==============================================================
-    // 🧱 Các hành động từ người chơi
+    // 🧱 PLAYER ACTIONS
     // ==============================================================
 
     @Override
@@ -158,49 +190,131 @@ public class MultiGameServiceImpl implements GameService {
         GameState s = getState(playerId);
         if (s.isGameOver()) return s;
         s.drop();
+        // Game over will be detected by scheduler
         return s;
     }
 
     // ==============================================================
-    // 💀 Khi 1 người chơi game over
+    // 👀 HANDLE PLAYER GAME OVER
     // ==============================================================
 
     private void handlePlayerGameOver(Long playerId, Long roomId) {
+        // ✅ Prevent duplicate processing
+        Set<Long> finished = finishedPlayers.get(roomId);
+        if (finished != null && finished.contains(playerId)) {
+            logger.warn("⚠️ Player {} already marked as finished", playerId);
+            return;
+        }
+
+        // Cancel the tick task
         cancelTick(playerId);
 
+        // Get final game state
         GameState state = playerStates.get(playerId);
         if (state != null) {
+            state.setStatus(GameStatus.GAME_OVER);
+
+            // Save score
             try {
                 userScoreService.saveScore(playerId, state.getScore());
                 logger.info("✅ Saved score {} for player {}", state.getScore(), playerId);
             } catch (Exception e) {
-                logger.error("❌ Failed to save score for player {}", playerId, e);
+                logger.error("❌ Failed to save score for player {}: {}", playerId, e.getMessage());
             }
         }
 
+        // Mark as finished
+        if (finished != null) {
+            finished.add(playerId);
+        }
+
+        // Get player info
+        Player player = playerRepository.findById(playerId).orElse(null);
+        String playerName = player != null ? player.getUser().getUsername() : "Unknown";
+
+        // Send final board snapshot
         messagingTemplate.convertAndSend("/topic/room/" + roomId, Map.of(
                 "type", "PLAYER_GAME_OVER",
-                "playerId", playerId
+                "playerId", playerId,
+                "playerName", playerName,
+                "score", state != null ? state.getScore() : 0,
+                "level", state != null ? state.getLevel() : 1,
+                "status", GameStatus.GAME_OVER.name(),
+                "finalState", Map.of(
+                        "board", state != null ? state.getBoard().getBoardSnapshot() : new int[20][10],
+                        "score", state != null ? state.getScore() : 0,
+                        "level", state != null ? state.getLevel() : 1
+                )
         ));
 
-        // Nếu tất cả người chơi đều game over → kết thúc room
+        logger.info("🏁 Player {} ({}) finished with score {}", playerId, playerName,
+                state != null ? state.getScore() : 0);
+
+        // Check if room is complete
         if (isRoomGameOver(roomId)) {
-            messagingTemplate.convertAndSend("/topic/room/" + roomId, Map.of(
-                    "type", "ROOM_GAME_OVER",
-                    "roomId", roomId
-            ));
-            logger.info("🏁 Room {} game over for all players", roomId);
+            finishRoomGame(roomId);
         }
     }
 
     private boolean isRoomGameOver(Long roomId) {
         return roomRepository.findById(roomId)
-                .map(room -> room.getPlayers().stream()
-                        .allMatch(p -> {
-                            GameState s = playerStates.get(p.getId());
-                            return s == null || s.isGameOver();
-                        }))
-                .orElse(true);
+                .map(room -> {
+                    Set<Long> finished = finishedPlayers.get(roomId);
+                    if (finished == null) return false;
+
+                    // Check if ALL players in the room have finished
+                    int totalPlayers = room.getPlayers().size();
+                    int finishedCount = (int) room.getPlayers().stream()
+                            .map(Player::getId)
+                            .filter(finished::contains)
+                            .count();
+
+                    boolean allFinished = finishedCount == totalPlayers && totalPlayers > 0;
+
+                    logger.info("🔍 Room {} completion check: {}/{} players finished",
+                            roomId, finishedCount, totalPlayers);
+
+                    return allFinished;
+                })
+                .orElse(false);
+    }
+
+    private void finishRoomGame(Long roomId) {
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new IllegalArgumentException("Room not found"));
+
+        // Calculate rankings
+        List<RankingDTO> rankings = room.getPlayers().stream()
+                .map(player -> {
+                    GameState state = playerStates.get(player.getId());
+                    int score = state != null ? state.getScore() : 0;
+                    return new RankingDTO(
+                            player.getId(),
+                            player.getUser().getUsername(),
+                            score
+                    );
+                })
+                .sorted((a, b) -> Integer.compare(b.getScore(), a.getScore()))
+                .collect(Collectors.toList());
+
+        // Cache rankings
+        roomRankings.put(roomId, rankings);
+
+        // Send rankings to all players
+        messagingTemplate.convertAndSend("/topic/room/" + roomId, Map.of(
+                "type", "ROOM_GAME_OVER",
+                "roomId", roomId,
+                "rankings", rankings
+        ));
+
+        // Cleanup
+        finishedPlayers.remove(roomId);
+
+        logger.info("🏆 Room {} game finished! Rankings: {}",
+                roomId,
+                rankings.stream()
+                        .map(r -> r.getUsername() + ":" + r.getScore())
+                        .collect(Collectors.joining(", ")));
     }
 
     private void cancelTick(Long playerId) {
@@ -211,7 +325,7 @@ public class MultiGameServiceImpl implements GameService {
     }
 
     // ==============================================================
-    // 🔍 Truy cập state
+    // 📖 STATE RETRIEVAL
     // ==============================================================
 
     @Override
@@ -221,13 +335,10 @@ public class MultiGameServiceImpl implements GameService {
         return s;
     }
 
-    /** Trả về gameState hiện tại (nếu có), không ném exception. */
     public GameState getGameState(Long playerId) {
         return playerStates.get(playerId);
     }
 
-
-    /** Lấy toàn bộ gameState của người chơi trong một phòng cụ thể. */
     public Map<Long, GameState> getAllStatesByRoom(Long roomId) {
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new IllegalArgumentException("Room not found"));
@@ -244,11 +355,49 @@ public class MultiGameServiceImpl implements GameService {
 
     @Override
     public boolean isGameOver(Long playerId) {
-        return getState(playerId).isGameOver();
+        GameState state = playerStates.get(playerId);
+        return state != null && state.isGameOver();
     }
 
     // ==============================================================
-    // 🧹 Shutdown
+    // ✅ NEW: Room completion queries
+    // ==============================================================
+
+    public boolean isRoomComplete(Long roomId) {
+        return roomRepository.findById(roomId)
+                .map(room -> {
+                    Set<Long> finished = finishedPlayers.get(roomId);
+                    if (finished == null) return false;
+                    return room.getPlayers().stream()
+                            .map(Player::getId)
+                            .allMatch(finished::contains);
+                })
+                .orElse(false);
+    }
+
+    public List<RankingDTO> getRoomRankings(Long roomId) {
+        // Return cached rankings or compute if not complete
+        List<RankingDTO> cached = roomRankings.get(roomId);
+        if (cached != null) return cached;
+
+        return roomRepository.findById(roomId)
+                .map(room -> room.getPlayers().stream()
+                        .map(player -> {
+                            GameState state = playerStates.get(player.getId());
+                            int score = state != null ? state.getScore() : 0;
+                            return new RankingDTO(
+                                    player.getId(),
+                                    player.getUser().getUsername(),
+                                    score
+                            );
+                        })
+                        .sorted((a, b) -> Integer.compare(b.getScore(), a.getScore()))
+                        .collect(Collectors.toList()))
+                .orElseGet(Collections::emptyList);
+    }
+
+    // ==============================================================
+    // 🧹 SHUTDOWN
     // ==============================================================
 
     @PreDestroy
@@ -258,7 +407,7 @@ public class MultiGameServiceImpl implements GameService {
     }
 
     // ==============================================================
-    // 🔧 Convert Room → DTO
+    // 🔧 CONVERSION
     // ==============================================================
 
     private RoomDTO convertToDTO(Room room) {

@@ -44,7 +44,7 @@ public class Board {
         currentBlock.setY(-currentBlock.getShape().length + 1); // allow negative y
         nextBlock = randomBlock();
 
-        // nếu va chạm ngay khi spawn → game over
+        // ✅ Check if spawn position collides → game over
         return !collision(currentBlock.getX(), currentBlock.getY(), currentBlock.getShape(), true);
     }
 
@@ -103,11 +103,11 @@ public class Board {
     }
 
     /**
-     * Kiểm tra va chạm
-     * @param x vị trí x
-     * @param y vị trí y
-     * @param shape ma trận block
-     * @param allowAbove cho phép block ở phía trên board
+     * ✅ IMPROVED: Collision detection with proper out-of-bounds checks
+     * @param x position x
+     * @param y position y
+     * @param shape block matrix
+     * @param allowAbove allow block above board (spawn area)
      */
     private boolean collision(int x, int y, int[][] shape, boolean allowAbove) {
         for (int i = 0; i < shape.length; i++) {
@@ -117,13 +117,49 @@ public class Board {
                 int nx = x + j;
                 int ny = y + i;
 
+                // ✅ Check left/right boundaries
                 if (nx < 0 || nx >= width) return true;
+
+                // ✅ Check bottom boundary (hard collision)
                 if (ny >= height) return true;
+
+                // ✅ Check if block is way above spawn area (top out)
+                // If any block part is more than 2 rows above the visible board, it's out
+                if (ny < -shape.length && !allowAbove) return true;
+
+                // ✅ Check above board only if NOT allowed
                 if (ny < 0 && !allowAbove) return true;
+
+                // ✅ Check grid collision (only if within bounds)
                 if (ny >= 0 && grid[ny][nx] != 0) return true;
             }
         }
         return false;
+    }
+
+    /** ✅ NEW: Check if block is completely out of bounds (top out detection) */
+    public boolean isBlockTopOut() {
+        if (currentBlock == null) return false;
+
+        int[][] shape = currentBlock.getShape();
+        int x = currentBlock.getX();
+        int y = currentBlock.getY();
+
+        // If all parts of the block are above the visible board
+        for (int i = 0; i < shape.length; i++) {
+            for (int j = 0; j < shape[i].length; j++) {
+                if (shape[i][j] != 0) {
+                    int ny = y + i;
+                    // If block is still in spawn area or visible area
+                    if (ny >= -shape.length) {
+                        return false; // Block is still within acceptable bounds
+                    }
+                }
+            }
+        }
+
+        // All block parts are way above the board
+        return true;
     }
 
     /** Ghi block vào grid khi chạm đáy */
@@ -138,14 +174,19 @@ public class Board {
                 if (shape[i][j] != 0) {
                     int x = currentBlock.getX() + j;
                     int y = currentBlock.getY() + i;
-                    if (y >= 0 && y < height && x >= 0 && x < width) {
-                        grid[y][x] = id;
+
+                    // ✅ Check if lock position is out of bounds
+                    if (y >= height || y < 0 || x < 0 || x >= width) {
+                        // Block locked out of bounds = GAME OVER
+                        continue; // Don't write to grid
                     }
+
+                    grid[y][x] = id;
                 }
             }
         }
 
-        // Không clearLines() và không spawn ở đây — để GameState xử lý tiếp
+        // Không clearLines() và không spawn ở đây – để GameState xử lý tiếp
         currentBlock = null;
     }
 

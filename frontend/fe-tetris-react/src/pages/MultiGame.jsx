@@ -1,332 +1,473 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, RotateCw, ChevronDown } from 'lucide-react';
-import axios from 'axios';
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import axios from "axios";
+import "../css/MultiGame.css";
 
-// Axios for MultiGame API
-const MULTIGAME_API = axios.create({
-  baseURL: 'http://localhost:8080/api/multigame',
-});
-MULTIGAME_API.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+const BLOCK_COLORS = {
+  I: "cyan", O: "yellow", T: "purple", S: "lime",
+  Z: "red", J: "blue", L: "orange", 0: "#111",
+};
 
-// Axios for Room API
-const ROOM_API = axios.create({
-  baseURL: 'http://localhost:8080/api/rooms',
-});
-ROOM_API.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+const COLOR_MAP = {
+  0: "0", 1: "I", 2: "O", 3: "T", 4: "S", 5: "Z", 6: "J", 7: "L",
+};
 
-const MultiGame = ({ currentUser }) => {
+const TETRIMINO_SHAPES = {
+  I: [[0, 0, 0, 0], [1, 1, 1, 1], [0, 0, 0, 0], [0, 0, 0, 0]],
+  O: [[1, 1], [1, 1]],
+  T: [[0, 1, 0], [1, 1, 1], [0, 0, 0]],
+  S: [[0, 1, 1], [1, 1, 0], [0, 0, 0]],
+  Z: [[1, 1, 0], [0, 1, 1], [0, 0, 0]],
+  J: [[1, 0, 0], [1, 1, 1], [0, 0, 0]],
+  L: [[0, 0, 1], [1, 1, 1], [0, 0, 0]],
+};
+
+export default function MultiGame() {
   const { roomId } = useParams();
   const navigate = useNavigate();
-  const [room, setRoom] = useState(null);
+
+  const [currentPlayerId, setCurrentPlayerId] = useState(null);
+  const [players, setPlayers] = useState([]);
   const [gameStates, setGameStates] = useState({});
-  const [currentPlayerState, setCurrentPlayerState] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [gameActive, setGameActive] = useState(false);
+  const [gameOverPlayers, setGameOverPlayers] = useState(new Set());
+  const [rankings, setRankings] = useState(null);
+  const [roomGameOver, setRoomGameOver] = useState(false);
+  const [isCurrentPlayerGameOver, setIsCurrentPlayerGameOver] = useState(false);
 
-  // Fetch room info
-  const fetchRoom = useCallback(async () => {
-    try {
-      const res = await ROOM_API.get(`/${roomId}`);
-      setRoom(res.data);
-    } catch (err) {
-      console.error('Error fetching room:', err);
-      setError('Failed to fetch room info');
-    }
-  }, [roomId]);
+  const intervalRef = useRef(null);
+  const wsRef = useRef(null);
 
-  // Get all states for all players in the room
-  const getAllStates = useCallback(async () => {
-    try {
-      const res = await MULTIGAME_API.get(`/room/${roomId}/states`);
-      setGameStates(res.data);
-    } catch (err) {
-      console.error('Error fetching all states:', err);
-    }
-  }, [roomId]);
+  const API = axios.create({ baseURL: "http://localhost:8080/api" });
+  API.interceptors.request.use((config) => {
+    const token = localStorage.getItem("token");
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+    return config;
+  });
 
-  // Get current player state
-  const getCurrentPlayerState = useCallback(async () => {
-    try {
-      const res = await MULTIGAME_API.get(`/player/${currentUser.id}/state`);
-      setCurrentPlayerState(res.data);
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching player state:', err);
-    }
-  }, [currentUser.id]);
+  // ===== Setup WebSocket =====
+  const setupWebSocket = useCallback(() => {
+    const token = localStorage.getItem("token");
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/ws?token=${token}`;
 
-  // Check if game is over
-  const checkGameOver = useCallback(async () => {
-    try {
-      const res = await MULTIGAME_API.get(`/player/${currentUser.id}/isGameOver`);
-      return res.data;
-    } catch (err) {
-      console.error('Error checking game over:', err);
-      return false;
-    }
-  }, [currentUser.id]);
+    wsRef.current = new WebSocket(wsUrl);
 
-  // Initial setup
-  useEffect(() => {
-    const initGame = async () => {
-      setLoading(true);
-      await fetchRoom();
-      await getCurrentPlayerState();
-      await getAllStates();
-      setGameActive(true);
-      setLoading(false);
+    wsRef.current.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+
+        // ✅ Handle player game over
+        if (message.type === "PLAYER_GAME_OVER") {
+          console.log("✅ Player game over:", message.playerName, "Score:", message.score);
+
+          setGameOverPlayers((prev) => new Set([...prev, message.playerId]));
+
+          // Update with final board state
+          if (message.finalState) {
+            setGameStates((prev) => ({
+              ...prev,
+              [message.playerId]: {
+                ...prev[message.playerId],
+                board: message.finalState.board,
+                score: message.finalState.score,
+                level: message.finalState.level,
+                status: "GAME_OVER"
+              }
+            }));
+          }
+        }
+        // ✅ Handle room game over with rankings
+        else if (message.type === "ROOM_GAME_OVER") {
+          console.log("✅ Room game over - Rankings received");
+          setRoomGameOver(true);
+          if (message.rankings) {
+            setRankings(message.rankings);
+          }
+        }
+        // Handle regular tick updates
+        else if (message.type === "TICK_UPDATE") {
+          setGameStates((prev) => ({
+            ...prev,
+            [message.playerId]: {
+              board: message.board,
+              score: message.score,
+              level: message.level,
+              status: message.status,
+              nextBlock: message.nextBlock
+            }
+          }));
+        }
+      } catch (e) {
+        console.error("❌ WebSocket message error:", e);
+      }
     };
-    initGame();
-  }, [fetchRoom, getCurrentPlayerState, getAllStates, roomId]);
 
-  // Fetch state on interval
-  useEffect(() => {
-    if (!gameActive) return;
+    wsRef.current.onerror = (error) => {
+      console.error("❌ WebSocket error:", error);
+    };
 
-    const interval = setInterval(async () => {
-      await getCurrentPlayerState();
-      await getAllStates();
-      const isOver = await checkGameOver();
-      if (isOver) {
-        setGameActive(false);
+    wsRef.current.onopen = () => {
+      console.log("✅ WebSocket connected for room:", roomId);
+    };
+
+    wsRef.current.onclose = () => {
+      console.log("⚠️ WebSocket disconnected");
+    };
+
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, [roomId]);
+
+  // ===== Fetch current player =====
+  const fetchCurrentPlayer = useCallback(async () => {
+    try {
+      const res = await API.get("/player/me");
+      setCurrentPlayerId(res.data.id);
+    } catch (e) {
+      console.error("❌ fetchCurrentPlayer:", e);
+      setError("Cannot load current player");
+    }
+  }, []);
+
+  // ===== Fetch players in room =====
+  const fetchPlayers = useCallback(async () => {
+    try {
+      const res = await API.get(`/rooms/${roomId}`);
+      setPlayers(res.data.players || []);
+    } catch (e) {
+      console.error("❌ fetchPlayers:", e);
+      setError("Cannot load room players");
+    }
+  }, [roomId]);
+
+  // ===== Fetch game states =====
+  const fetchStates = useCallback(async () => {
+    try {
+      const res = await API.get(`/multigame/room/${roomId}/states`);
+      setGameStates(res.data || {});
+    } catch (e) {
+      console.error("❌ fetchStates:", e);
+    }
+  }, [roomId]);
+
+  // ===== Check room completion =====
+  const checkRoomCompletion = useCallback(async () => {
+    try {
+      const res = await API.get(`/multigame/room/${roomId}/isComplete`);
+      if (res.data) {
+        console.log("✅ Room is complete, fetching rankings...");
+        const rankRes = await API.get(`/multigame/room/${roomId}/rankings`);
+        setRankings(rankRes.data);
+        setRoomGameOver(true);
+      }
+    } catch (e) {
+      console.error("❌ checkRoomCompletion:", e);
+    }
+  }, [roomId]);
+
+  // ===== Sync game states periodically =====
+  const startSync = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+
+    intervalRef.current = setInterval(async () => {
+      await fetchStates();
+
+      // Check if current player is game over
+      if (currentPlayerId && gameOverPlayers.has(currentPlayerId)) {
+        await checkRoomCompletion();
       }
     }, 500);
+  }, [fetchStates, currentPlayerId, gameOverPlayers, checkRoomCompletion]);
 
-    return () => clearInterval(interval);
-  }, [gameActive, getCurrentPlayerState, getAllStates, checkGameOver]);
-
-  // Player actions
-  const handleAction = async (action) => {
-    try {
-      const res = await MULTIGAME_API.post(`/player/${currentUser.id}/${action}`);
-      setCurrentPlayerState(res.data);
-      setError(null);
-    } catch (err) {
-      setError(`Failed to execute ${action}`);
+  const stopSync = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
+  }, []);
+
+  // ===== Send player action =====
+  const sendAction = useCallback(
+    async (playerId, action) => {
+      try {
+        await API.post(`/multigame/player/${playerId}/${action}`);
+        await fetchStates();
+      } catch (e) {
+        console.error("❌ sendAction:", e);
+      }
+    },
+    [fetchStates]
+  );
+
+  // ===== Handle back to lobby =====
+  const handleBackToLobby = useCallback(async () => {
+    stopSync();
+    if (wsRef.current) {
+      wsRef.current.close();
+    }
+    navigate(`/lobby/${roomId}`);
+  }, [stopSync, navigate, roomId]);
+
+  // ===== Handle key press =====
+  const onKeyDown = useCallback(
+    (e) => {
+      if (!currentPlayerId || isCurrentPlayerGameOver) return;
+
+      let action = null;
+      switch (e.key) {
+        case "ArrowLeft": action = "moveLeft"; break;
+        case "ArrowRight": action = "moveRight"; break;
+        case "ArrowUp": action = "rotate"; break;
+        case "ArrowDown": action = "tick"; break;
+        case " ": action = "drop"; break;
+        default: return;
+      }
+
+      e.preventDefault();
+      sendAction(currentPlayerId, action);
+    },
+    [currentPlayerId, isCurrentPlayerGameOver, sendAction]
+  );
+
+  useEffect(() => {
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onKeyDown]);
+
+  // ===== Track current player game over state =====
+  useEffect(() => {
+    if (currentPlayerId && gameOverPlayers.has(currentPlayerId)) {
+      console.log("✅ Current player is game over");
+      setIsCurrentPlayerGameOver(true);
+    }
+  }, [currentPlayerId, gameOverPlayers]);
+
+  // ===== Initial load =====
+  useEffect(() => {
+    fetchCurrentPlayer();
+    fetchPlayers();
+    fetchStates();
+    startSync();
+    const cleanupWs = setupWebSocket();
+
+    return () => {
+      stopSync();
+      cleanupWs();
+    };
+  }, [fetchCurrentPlayer, fetchPlayers, fetchStates, startSync, stopSync, setupWebSocket]);
+  useEffect(() => {
+    console.log("🔍 Game over players updated:", Array.from(gameOverPlayers));
+    console.log("📊 Current room game over status:", roomGameOver);
+    console.log("📋 Rankings:", rankings);
+  }, [gameOverPlayers, roomGameOver, rankings]);
+  // ===== Render board =====
+  const renderBoard = (state) => {
+    if (!state?.board) return <div className="solo-game-board">Loading...</div>;
+    return (
+      <div className="solo-game-board">
+        {state.board.map((row, y) => (
+          <div key={y} style={{ display: "flex" }}>
+            {row.map((cell, x) => {
+              const blockKey = COLOR_MAP[cell] || "0";
+              const color = BLOCK_COLORS[blockKey];
+              return (
+                <div
+                  key={`${x}-${y}`}
+                  className={`solo-game-cell ${cell ? "solo-game-cell-filled" : "solo-game-cell-empty"}`}
+                  style={cell ? { "--block-color": color, "--block-color33": color + "33" } : {}}
+                />
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    );
   };
 
-  const handleMoveLeft = () => handleAction('moveLeft');
-  const handleMoveRight = () => handleAction('moveRight');
-  const handleRotate = () => handleAction('rotate');
-  const handleDrop = () => handleAction('drop');
-  const handleTick = () => handleAction('tick');
-
-  // Render game board
-  const renderBoard = () => {
-    if (!currentPlayerState || !currentPlayerState.board) return null;
+  // ===== Render next block =====
+  const renderNextBlock = (blockKey) => {
+    if (!blockKey || !TETRIMINO_SHAPES[blockKey]) return <p style={{ color: "#666" }}>...</p>;
+    const shape = TETRIMINO_SHAPES[blockKey];
+    const color = BLOCK_COLORS[blockKey] || "white";
 
     return (
-      <div className="bg-gray-900 p-4 rounded-lg border-4 border-cyan-500 inline-block">
-        <div className="grid gap-0" style={{ gridTemplateColumns: `repeat(10, 1fr)` }}>
-          {currentPlayerState.board.map((row, rowIdx) =>
-            row.map((cell, colIdx) => (
+      <div className="solo-next-block-container">
+        {shape.map((row, y) => (
+          <div key={y} style={{ display: "flex" }}>
+            {row.map((cell, x) => (
               <div
-                key={`${rowIdx}-${colIdx}`}
-                className={`w-6 h-6 border border-gray-700 ${
-                  cell === 0 ? 'bg-gray-900' : 'bg-cyan-400'
-                }`}
+                key={x}
+                className={`solo-next-cell ${cell ? "solo-next-cell-filled" : "solo-next-cell-empty"}`}
+                style={cell ? { "--block-color": color, "--block-color33": color + "33" } : {}}
               />
-            ))
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // ===== Render Game Over Screen =====
+  const renderGameOverScreen = () => {
+    return (
+      <div className="game-over-overlay">
+        <div className="game-over-container">
+          <h1 className="game-over-title">🎮 GAME OVER</h1>
+
+          {!roomGameOver ? (
+            <div className="waiting-screen">
+              <p className="waiting-text">⏳ Waiting for all players to finish...</p>
+              <div className="players-status">
+                {players.map((p) => (
+                  <div
+                    key={p.id}
+                    className={`player-status-item ${gameOverPlayers.has(p.id) ? "finished" : "playing"
+                      }`}
+                  >
+                    <span className="status-icon">
+                      {gameOverPlayers.has(p.id) ? "✅" : "🎮"}
+                    </span>
+                    <span className="status-name">{p.username}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="rankings-screen">
+              <h2 className="rankings-title">🏆 FINAL RANKINGS</h2>
+              <div className="rankings-list">
+                {rankings && rankings.length > 0 ? (
+                  rankings.map((rank, index) => (
+                    <div key={rank.playerId} className={`ranking-item rank-${index + 1}`}>
+                      <span className="rank-medal">
+                        {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`}
+                      </span>
+                      <span className="rank-name">{rank.username}</span>
+                      <span className="rank-score">{rank.score} pts</span>
+                    </div>
+                  ))
+                ) : (
+                  <p style={{ color: "#999" }}>Loading rankings...</p>
+                )}
+              </div>
+              <button className="back-to-lobby-btn" onClick={handleBackToLobby}>
+                Back to Lobby
+              </button>
+            </div>
           )}
         </div>
       </div>
     );
   };
 
-  if (loading) {
+  if (error)
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-8 flex items-center justify-center">
-        <div className="text-cyan-400 text-2xl">Loading game...</div>
+      <div className="solo-game-container">
+        <div style={{ color: "#ff4d4f", fontSize: 24 }}>{error}</div>
       </div>
     );
-  }
 
-  if (!currentPlayerState) {
+  if (!currentPlayerId || players.length === 0)
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-8 flex items-center justify-center">
-        <div className="text-red-400 text-2xl">Failed to load game state</div>
+      <div className="solo-game-container">
+        <div style={{ color: "white" }}>Loading game...</div>
       </div>
     );
-  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-5xl font-bold text-cyan-400">🎮 Tetris Battle</h1>
-          <button
-            onClick={() => navigate('/rooms')}
-            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
-          >
-            Back to Rooms
-          </button>
-        </div>
-
-        <div className="text-cyan-300 mb-6 text-lg">
-          <span className="font-bold">Room:</span> {room?.roomName}
-        </div>
-
-        {error && (
-          <div className="bg-red-900 text-red-100 p-4 rounded mb-6">{error}</div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Main Game Board */}
-          <div className="lg:col-span-2">
-            <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
-              <h2 className="text-2xl font-bold text-white mb-4">Your Board</h2>
-              <div className="flex justify-center mb-8">{renderBoard()}</div>
-
-              {/* Game Info */}
-              <div className="grid grid-cols-3 gap-4 mb-8">
-                <div className="bg-slate-700 p-4 rounded">
-                  <p className="text-cyan-300 text-sm">Score</p>
-                  <p className="text-white text-2xl font-bold">{currentPlayerState.score}</p>
-                </div>
-                <div className="bg-slate-700 p-4 rounded">
-                  <p className="text-cyan-300 text-sm">Level</p>
-                  <p className="text-white text-2xl font-bold">{currentPlayerState.level}</p>
-                </div>
-                <div className="bg-slate-700 p-4 rounded">
-                  <p className="text-cyan-300 text-sm">Status</p>
-                  <p className={`text-2xl font-bold ${
-                    currentPlayerState.status === 'GAME_OVER' ? 'text-red-400' :
-                    currentPlayerState.status === 'PAUSED' ? 'text-yellow-400' :
-                    'text-green-400'
-                  }`}>
-                    {currentPlayerState.status}
-                  </p>
-                </div>
-              </div>
-
-              {/* Controls */}
-              <div className="space-y-4">
-                <div className="flex gap-4 justify-center">
-                  <button
-                    onClick={handleMoveLeft}
-                    disabled={!gameActive}
-                    className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white p-3 rounded flex items-center gap-2"
-                  >
-                    <ChevronLeft size={24} />
-                  </button>
-                  <button
-                    onClick={handleRotate}
-                    disabled={!gameActive}
-                    className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white p-3 rounded flex items-center gap-2"
-                  >
-                    <RotateCw size={24} />
-                  </button>
-                  <button
-                    onClick={handleMoveRight}
-                    disabled={!gameActive}
-                    className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white p-3 rounded flex items-center gap-2"
-                  >
-                    <ChevronRight size={24} />
-                  </button>
-                </div>
-                <div className="flex gap-4 justify-center">
-                  <button
-                    onClick={handleDrop}
-                    disabled={!gameActive}
-                    className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white px-6 py-3 rounded flex items-center gap-2 flex-1 justify-center"
-                  >
-                    <ChevronDown size={24} /> Drop
-                  </button>
-                  <button
-                    onClick={handleTick}
-                    disabled={!gameActive}
-                    className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white px-6 py-3 rounded flex-1"
-                  >
-                    Tick
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Sidebar - Next Block & Other Players */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Current Block */}
-            <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
-              <h3 className="text-xl font-bold text-white mb-3">Current Block</h3>
-              <p className="text-cyan-400 text-lg font-bold">{currentPlayerState.currentBlock || 'N/A'}</p>
-            </div>
-
-            {/* Next Block */}
-            <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
-              <h3 className="text-xl font-bold text-white mb-3">Next Block</h3>
-              <p className="text-cyan-400 text-lg font-bold">{currentPlayerState.nextBlock || 'N/A'}</p>
-            </div>
-
-            {/* All Players States */}
-            <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
-              <h3 className="text-xl font-bold text-white mb-4">⚔️ Leaderboard</h3>
-              <div className="space-y-3">
-                {Object.entries(gameStates)
-                  .sort(([, a], [, b]) => b.score - a.score)
-                  .map(([id, state], idx) => (
-                    <div
-                      key={id}
-                      className={`p-4 rounded flex items-center justify-between ${
-                        Number(id) === currentUser.id
-                          ? 'bg-cyan-500 text-black font-bold'
-                          : 'bg-slate-700 text-white'
-                      }`}
-                    >
-                      <div>
-                        <p className="font-bold">#{idx + 1} Player {id}</p>
-                        <p className="text-sm">Lvl {state.level}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-2xl font-bold">{state.score}</p>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </div>
-
-            {/* Room Info */}
-            <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
-              <h3 className="text-xl font-bold text-white mb-3">📋 Room Info</h3>
-              <p className="text-cyan-300 text-sm mb-2">
-                <span className="font-bold">Host:</span> {room?.hostUsername}
-              </p>
-              <p className="text-cyan-300 text-sm">
-                <span className="font-bold">Players:</span> {room?.players?.length || 0}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Game Over Screen */}
-        {!gameActive && currentPlayerState.status === 'GAME_OVER' && (
-          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center">
-            <div className="bg-slate-800 p-8 rounded-lg border-2 border-red-500 text-center">
-              <h2 className="text-4xl font-bold text-red-400 mb-4">GAME OVER</h2>
-              <p className="text-white text-2xl mb-6">Final Score: {currentPlayerState.score}</p>
-              <button
-                onClick={() => navigate('/rooms')}
-                className="bg-cyan-500 hover:bg-cyan-600 text-black font-bold px-8 py-3 rounded"
-              >
-                Back to Rooms
-              </button>
-            </div>
-          </div>
-        )}
+    <div className="solo-game-container">
+      <div className="game-header">
+        <h1 className="game-logo">🎮 TETRIS</h1>
       </div>
+      <div className="solo-game-flex">
+        {players.map((p) => {
+          const state = gameStates[p.id];
+          const isCurrent = p.id === currentPlayerId;
+          const isPlayerGameOver = gameOverPlayers.has(p.id);
+
+          return (
+            <div
+              key={p.id}
+              className={`multi-game-card ${isCurrent ? "current-player" : ""} ${isPlayerGameOver ? "game-over-card" : ""
+                }`}
+            >
+              <div className="board-header">
+                <h3 className="board-player-name">
+                  {isCurrent ? "🎮 YOU" : p.username}
+                  {isPlayerGameOver && " ✅"}
+                </h3>
+              </div>
+
+              <div className="solo-game-info-panel" style={{ gridColumn: 1, gridRow: 2 }}>
+                <h2 className="solo-game-title">{p.username}</h2>
+                <div className="stat-card">
+                  <div className="stat-label">Score</div>
+                  <div className="stat-value">{state?.score ?? 0}</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-label">Level</div>
+                  <div className="stat-value">{state?.level ?? 1}</div>
+                </div>
+                {!isCurrent && (
+                  <div className="stat-card" style={{ marginTop: 10 }}>
+                    <div className="stat-label">Status</div>
+                    <div style={{ fontSize: 12, color: "#ff6a00" }}>
+                      {isPlayerGameOver ? "FINISHED ✅" : state?.status ?? "PLAYING"}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {renderBoard(state)}
+
+              <div
+                className="solo-game-right-panel"
+                style={{ display: "flex", flexDirection: "column", gap: 20, gridColumn: 3, gridRow: 2 }}
+              >
+                <div>
+                  <h3
+                    style={{
+                      marginBottom: 10,
+                      fontSize: 14,
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: 1.5,
+                      color: "#ff6a00",
+                    }}
+                  >
+                    Next Block
+                  </h3>
+                  {renderNextBlock(state?.nextBlock)}
+                </div>
+
+                {isCurrent && !isPlayerGameOver && (
+                  <>
+                    <div style={{ fontSize: 11, color: "#999", textAlign: "center", lineHeight: 1.6 }}>
+                      <div>↑ ROTATE • ← → MOVE</div>
+                      <div>↓ TICK • SPACE DROP</div>
+                    </div>
+                  </>
+                )}
+
+                {isCurrent && isPlayerGameOver && !roomGameOver && (
+                  <div style={{ fontSize: 12, color: "#ffaa00", textAlign: "center" }}>
+                    ⏳ Waiting for others...
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {isCurrentPlayerGameOver && renderGameOverScreen()}
     </div>
   );
-};
-
-export default MultiGame; 
+}
