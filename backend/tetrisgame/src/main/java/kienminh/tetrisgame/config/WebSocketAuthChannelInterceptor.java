@@ -8,8 +8,12 @@ import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Component;
 
 import kienminh.tetrisgame.util.JwtUtil;
@@ -18,35 +22,60 @@ import kienminh.tetrisgame.util.JwtUtil;
 public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
 
     private final JwtUtil jwtUtil;
+    private final UserDetailsService userDetailsService;
 
-    public WebSocketAuthChannelInterceptor(JwtUtil jwtUtil) {
+    public WebSocketAuthChannelInterceptor(JwtUtil jwtUtil, UserDetailsService userDetailsService) {
         this.jwtUtil = jwtUtil;
+        this.userDetailsService = userDetailsService;
     }
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
-        StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
+
+        StompHeaderAccessor accessor =
+                MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
+
+        // ✅ Only process CONNECT command
         if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
-            List<String> auth = accessor.getNativeHeader("Authorization");
-            if (auth != null && !auth.isEmpty()) {
-                String header = auth.get(0);
-                if (header.startsWith("Bearer ")) {
-                    String token = header.substring(7);
-                    try {
-                        String username = jwtUtil.extractUsername(token);
-                        if (jwtUtil.validateToken(token)) {
-                            var userDetails = org.springframework.security.core.userdetails.User
-                                    .withUsername(username)
-                                    .password("")   
-                                    .build();
-                            var authToken = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                            SecurityContextHolder.getContext().setAuthentication(authToken);
-                            accessor.setUser(authToken);
-                        }
-                    } catch (Exception ignored) {}
+
+            // ✅ Extract JWT token from header
+            String token = accessor.getFirstNativeHeader("token");
+
+            if (token == null || token.isBlank()) {
+                // ✅ Set as anonymous if no token provided
+                accessor.setUser(new AnonymousAuthenticationToken(
+                        "anon", "guest",
+                        List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS"))
+                ));
+                return message;
+            }
+
+            try {
+                // ✅ Validate and authenticate token
+                String username = jwtUtil.extractUsername(token);
+                if (jwtUtil.validateToken(token)) {
+
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+
+                    UsernamePasswordAuthenticationToken auth =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails,
+                                    null,
+                                    userDetails.getAuthorities()
+                            );
+
+                    accessor.setUser(auth);
                 }
+            } catch (Exception e) {
+                // ✅ Log and set as anonymous on error
+                System.out.println("WebSocket authentication error: " + e.getMessage());
+                accessor.setUser(new AnonymousAuthenticationToken(
+                        "anon", "guest",
+                        List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS"))
+                ));
             }
         }
+
         return message;
     }
 }

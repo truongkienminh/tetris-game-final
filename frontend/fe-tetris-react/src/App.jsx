@@ -7,22 +7,36 @@ import Profile from "./pages/Profile";
 import SoloGame from "./pages/SoloGame";
 import Room from "./pages/Room";
 import Lobby from "./pages/Lobby";
-import MultiGame from "./pages/MultiGame"; // ← import MultiGame
+import MultiGame from "./pages/MultiGame";
 import { getCurrentUser } from "./api";
 
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  // ✅ Fetch user on mount and when token changes
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await getCurrentUser();
-        setCurrentUser(res.data);
-      } catch {
+        const token = localStorage.getItem("token");
+        // ✅ Only try to fetch if token exists
+        if (token) {
+          const res = await getCurrentUser();
+          setCurrentUser(res.data);
+        } else {
+          setCurrentUser(null);
+        }
+      } catch (error) {
+        console.error("Failed to fetch current user:", error);
+        // ✅ If token is invalid, clear it
+        localStorage.removeItem("token");
         setCurrentUser(null);
+      } finally {
+        setLoading(false);
       }
     };
+
     fetchUser();
   }, []);
 
@@ -31,6 +45,23 @@ function App() {
     setCurrentUser(null);
     navigate("/login");
   };
+
+  // ✅ Show loading while checking authentication
+  if (loading) {
+    return (
+      <div style={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, #0a0e27 0%, #1a1f4d 50%, #0f1838 100%)",
+        color: "#00ff88",
+        fontSize: "24px",
+      }}>
+        Loading...
+      </div>
+    );
+  }
 
   return (
     <Routes>
@@ -62,7 +93,9 @@ function App() {
           currentUser ? (
             <MainMenu
               currentUser={currentUser}
-              onLogout={() => setCurrentUser(null)}
+              onLogout={() => {
+                handleLogout();
+              }}
             />
           ) : (
             <Navigate to="/login" />
@@ -71,26 +104,53 @@ function App() {
       />
       <Route
         path="/profile"
-        element={currentUser ? <Profile /> : <Navigate to="/login" />}
+        element={
+          currentUser ? (
+            <Profile />
+          ) : (
+            <Navigate to="/login" />
+          )
+        }
       />
       <Route
         path="/solo-game/:userId"
         element={
-          currentUser ? <SoloGame playerId={currentUser.id} /> : <Navigate to="/login" />
+          currentUser ? (
+            <SoloGame playerId={currentUser.id} />
+          ) : (
+            <Navigate to="/login" />
+          )
         }
       />
       <Route
         path="/rooms"
-        element={currentUser ? <Room currentUser={currentUser} /> : <Navigate to="/login" />}
+        element={
+          currentUser ? (
+            <Room currentUser={currentUser} />
+          ) : (
+            <Navigate to="/login" />
+          )
+        }
       />
       <Route
         path="/lobby/:roomId"
-        element={currentUser ? <Lobby currentUser={currentUser} /> : <Navigate to="/login" />}
+        element={
+          currentUser ? (
+            <Lobby currentUser={currentUser} />
+          ) : (
+            <Navigate to="/login" />
+          )
+        }
       />
-      {/* ← Thêm route MultiGame */}
       <Route
         path="/multigame/:roomId"
-        element={currentUser ? <MultiGame currentUser={currentUser} /> : <Navigate to="/login" />}
+        element={
+          currentUser ? (
+            <MultiGame currentUser={currentUser} />
+          ) : (
+            <Navigate to="/login" />
+          )
+        }
       />
       <Route
         path="*"

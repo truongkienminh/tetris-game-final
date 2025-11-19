@@ -5,9 +5,7 @@ import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 
 // Axios cho Room API
-const ROOM_API = axios.create({
-  baseURL: "http://localhost:8080/api/rooms",
-});
+const ROOM_API = axios.create({ baseURL: "http://localhost:8080/api/rooms" });
 ROOM_API.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -15,9 +13,7 @@ ROOM_API.interceptors.request.use((config) => {
 });
 
 // Axios cho MultiGame API
-const MULTIGAME_API = axios.create({
-  baseURL: "http://localhost:8080/api/multigame",
-});
+const MULTIGAME_API = axios.create({ baseURL: "http://localhost:8080/api/multigame" });
 MULTIGAME_API.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -115,7 +111,7 @@ export default function Lobby({ currentUser }) {
     }
     try {
       await MULTIGAME_API.post(`/start/${roomId}`);
-      // Host cũng redirect ngay
+      // Host redirect ngay
       navigate(`/multigame/${roomId}`);
     } catch (err) {
       console.error("Error starting game:", err);
@@ -124,83 +120,86 @@ export default function Lobby({ currentUser }) {
   };
 
   // ======================
-  // WebSocket STOMP realtime
+  // WebSocket STOMP + Poll room status
   // ======================
-  // ======================
-// WebSocket STOMP realtime
-// ======================
-useEffect(() => {
-  if (!roomId) return;
+  useEffect(() => {
+    if (!roomId) return;
+    const token = localStorage.getItem("token");
 
-  const token = localStorage.getItem("token");
+    // 1) SockJS
+    const socket = new SockJS("http://localhost:8080/ws");
 
-  // 1) Tạo SockJS tunnel (KHÔNG truyền token trong URL)
-  const socket = new SockJS("http://localhost:8080/ws");
+    // 2) STOMP client
+    const stompClient = new Client({
+      webSocketFactory: () => socket,
+      connectHeaders: { token }, // ✅ Use token header instead of Authorization
+      reconnectDelay: 5000,
+      onConnect: () => {
+        console.log("✅ Connected to STOMP WebSocket");
 
-  // 2) Tạo STOMP client
-  const stompClient = new Client({
-    webSocketFactory: () => socket,
-    connectHeaders: {
-      Authorization: `Bearer ${token}`,   // <-- TOKEN TRONG HEADER
-    },
-    reconnectDelay: 5000,
-    debug: (str) => console.log(str), // thích thì giữ
-  });
+        // ✅ Subscribe to room topic
+        stompClient.subscribe(`/topic/room/${roomId}`, (message) => {
+          try {
+            const data = JSON.parse(message.body);
+            console.log("📩 WS message received:", data);
 
-  stompClientRef.current = stompClient;
-
-  // 3) Khi kết nối thành công
-  stompClient.onConnect = () => {
-    console.log("✅ Connected to STOMP WebSocket");
-
-    // Nhận event GAME_START từ server
-    stompClient.subscribe(`/topic/room/${roomId}`, (message) => {
-      const data = JSON.parse(message.body);
-
-      console.log("📩 WS message:", data);
-
-      if (data.type === "GAME_START" && data.roomId === Number(roomId)) {
-        console.log("🎮 Game started! Redirecting...");
-        navigate(`/multigame/${roomId}`);
-      }
+            // ✅ Check for GAME_START message
+            if (data.type === "GAME_START") {
+              console.log("🎮 Game started! Redirecting to multigame...");
+              // Redirect all players to game
+              navigate(`/multigame/${roomId}`);
+            }
+          } catch (e) {
+            console.error("❌ Failed to parse WebSocket message:", e);
+          }
+        });
+      },
+      onStompError: (frame) => {
+        console.error("❌ STOMP error:", frame);
+      },
+      onWebSocketClose: () => {
+        console.warn("⚠️ WebSocket closed");
+      },
     });
-  };
 
-  stompClient.onStompError = (err) => {
-    console.error("❌ STOMP error:", err);
-  };
+    stompClientRef.current = stompClient;
+    stompClient.activate();
 
-  stompClient.activate();
+    // ✅ Poll room status as fallback
+    let polling = true;
+    const checkRoomStatus = async () => {
+      if (!polling) return;
+      try {
+        const res = await ROOM_API.get(`/${roomId}`);
+        if (res.data.roomStatus === "PLAYING") {
+          console.log("🎮 Room already started. Redirecting...");
+          navigate(`/multigame/${roomId}`);
+          polling = false;
+        }
+      } catch (err) {
+        console.error("Error checking room status:", err);
+      }
+    };
+    const interval = setInterval(checkRoomStatus, 2000);
 
-  return () => {
-    stompClient.deactivate();
-  };
-}, [roomId, navigate]);
+    return () => {
+      polling = false;
+      clearInterval(interval);
+      try {
+        if (stompClient && stompClient.active) {
+          stompClient.deactivate();
+        }
+      } catch (e) {
+        console.warn("Error deactivating STOMP:", e);
+      }
+    };
+  }, [roomId, navigate]);
 
   // ======================
   // Render
   // ======================
-  if (loading) {
-    return (
-      <>
-        <style>{styles}</style>
-        <div className="lobby-container">
-          <div className="loading">Loading lobby...</div>
-        </div>
-      </>
-    );
-  }
-
-  if (!room) {
-    return (
-      <>
-        <style>{styles}</style>
-        <div className="lobby-container">
-          <div className="error">Room not found.</div>
-        </div>
-      </>
-    );
-  }
+  if (loading) return <><style>{styles}</style><div className="lobby-container"><div className="loading">Loading lobby...</div></div></>;
+  if (!room) return <><style>{styles}</style><div className="lobby-container"><div className="error">Room not found.</div></div></>;
 
   return (
     <>
@@ -225,8 +224,7 @@ useEffect(() => {
                 <span>Players</span>
                 <span className="player-count">{room.players?.length || 0}</span>
               </div>
-
-              {room.players && room.players.length > 0 ? (
+              {room.players?.length > 0 ? (
                 <div className="players-list">
                   {room.players.map((p) => (
                     <div key={p.id} className="player-card">
@@ -238,9 +236,7 @@ useEffect(() => {
                     </div>
                   ))}
                 </div>
-              ) : (
-                <div className="empty-state">No players yet...</div>
-              )}
+              ) : <div className="empty-state">No players yet...</div>}
             </div>
           </div>
 

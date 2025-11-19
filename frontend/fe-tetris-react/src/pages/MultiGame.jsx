@@ -50,12 +50,11 @@ export default function MultiGame() {
   // ===== STOMP + SockJS setup =====
   const setupWebSocket = useCallback(() => {
     const token = localStorage.getItem("token");
-    // connect to backend Spring Boot endpoint (use absolute backend URL)
     const socket = new SockJS("http://localhost:8080/ws");
     const client = new Client({
       webSocketFactory: () => socket,
       connectHeaders: {
-        Authorization: `Bearer ${token}`,
+        token, // ✅ Send JWT token in header for WebSocket authentication
       },
       reconnectDelay: 5000,
       onConnect: () => {
@@ -103,10 +102,9 @@ export default function MultiGame() {
                 },
               }));
             }
-            // Handle game start (optional) - ensure client navigates if not already
+            // Handle game start
             else if (message.type === "GAME_START" && String(message.roomId) === String(roomId)) {
-              console.log("📩 GAME_START received, navigating to multigame route.");
-              navigate(`/multigame/${roomId}`);
+              console.log("🎮 GAME_START received, game is starting.");
             }
           } catch (e) {
             console.error("❌ STOMP message parse error:", e);
@@ -124,15 +122,16 @@ export default function MultiGame() {
     client.activate();
     stompClientRef.current = client;
 
-    // cleanup function returned if caller needs to use it
     return () => {
       try {
-        client.deactivate();
+        if (client && client.active) {
+          client.deactivate();
+        }
       } catch (e) {
         console.warn("Error deactivating STOMP client:", e);
       }
     };
-  }, [roomId, navigate]);
+  }, [roomId]);
 
   // ===== Fetch current player =====
   const fetchCurrentPlayer = useCallback(async () => {
@@ -223,7 +222,9 @@ export default function MultiGame() {
     stopSync();
     if (stompClientRef.current) {
       try {
-        await stompClientRef.current.deactivate();
+        if (stompClientRef.current.active) {
+          await stompClientRef.current.deactivate();
+        }
       } catch (e) {
         console.warn("Error deactivating stomp client:", e);
       }
@@ -276,21 +277,21 @@ export default function MultiGame() {
 
     return () => {
       stopSync();
-      // cleanup stomp
       try {
-        if (stompClientRef.current) stompClientRef.current.deactivate();
+        if (stompClientRef.current && stompClientRef.current.active) {
+          stompClientRef.current.deactivate();
+        }
       } catch (e) {
         console.warn("Error deactivating stomp client on unmount:", e);
       }
-      // call cleanup returned by setupWebSocket (if exists)
       if (typeof cleanupWs === "function") cleanupWs();
     };
   }, [fetchCurrentPlayer, fetchPlayers, fetchStates, startSync, stopSync, setupWebSocket]);
 
   useEffect(() => {
-    console.log("🔍 Game over players updated:", Array.from(gameOverPlayers));
-    console.log("📊 Current room game over status:", roomGameOver);
-    console.log("📋 Rankings:", rankings);
+    console.log("🎮 Game over players updated:", Array.from(gameOverPlayers));
+    console.log("🏁 Current room game over status:", roomGameOver);
+    console.log("🏆 Rankings:", rankings);
   }, [gameOverPlayers, roomGameOver, rankings]);
 
   // ===== Render board =====

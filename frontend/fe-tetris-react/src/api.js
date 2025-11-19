@@ -5,7 +5,7 @@ const API = axios.create({
   baseURL: "http://localhost:8080/api/auth",
 });
 
-// Thêm token JWT vào header nếu có
+// ✅ Add JWT token to header if available
 API.interceptors.request.use(config => {
   const token = localStorage.getItem("token");
   if (token) {
@@ -13,6 +13,21 @@ API.interceptors.request.use(config => {
   }
   return config;
 });
+
+// ✅ Handle 401 responses (token expired or invalid)
+API.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response?.status === 401) {
+      // Token is invalid or expired
+      localStorage.removeItem("token");
+      console.warn("⚠️ Unauthorized - Token cleared. Redirecting to login...");
+      // Optionally redirect to login
+      window.location.href = "/login";
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const registerUser = (username, password) =>
   API.post("/register", { username, password });

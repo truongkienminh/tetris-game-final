@@ -55,9 +55,8 @@ public class SecurityConfig {
     // CORS config
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-    CorsConfiguration config = new CorsConfiguration();
-    // use allowed origin patterns to allow wildcard with credentials
-    config.setAllowedOriginPatterns(List.of("*"));
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOriginPatterns(List.of("*"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
@@ -73,41 +72,56 @@ public class SecurityConfig {
                                                    AuthenticationProvider authenticationProvider) throws Exception {
 
         http
+                // ✅ Disable CSRF for stateless API + allow session for pages
                 .csrf(csrf -> csrf.disable())
+
+                // ✅ Enable CORS
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                // Phân quyền
+
+                // ✅ Security headers
+                .headers(headers -> headers
+                        .frameOptions(frameOptions -> frameOptions.sameOrigin())
+                        .contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'"))
+                )
+
+                // ✅ Authorization rules
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/login", "/register",
                                 "/css/**", "/js/**", "/images/**", "/favicon.ico",
-                                "/swagger-ui/**", "/v3/api-docs/**","/ws/**"
+                                "/swagger-ui/**", "/v3/api-docs/**",
+                                "/ws", "/ws/**"
                         ).permitAll()
-                        .anyRequest().authenticated() // các Thymeleaf pages
+                        .anyRequest().authenticated()
                 )
 
-                // Cho phép session để Thymeleaf page load
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+                // ✅ Session management - Keep sessions alive for Thymeleaf pages
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                        .invalidSessionUrl("/login?invalid")
+                )
 
-                // Authentication provider
+                // ✅ Authentication provider
                 .authenticationProvider(authenticationProvider)
 
-                // JWT filter
+                // ✅ JWT filter before authentication
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
 
-                // Form login (Thymeleaf)
+                // ✅ Form login (Thymeleaf)
                 .formLogin(form -> form
                         .loginPage("/login")
                         .defaultSuccessUrl("/mainmenu", true)
                         .permitAll()
                 )
 
-                // Logout
+                // ✅ Logout configuration
                 .logout(logout -> logout
                         .logoutUrl("/logout")
                         .logoutSuccessUrl("/login?logout")
                         .invalidateHttpSession(true)
                         .deleteCookies("JSESSIONID")
+                        .permitAll()
                 );
 
         return http.build();

@@ -32,13 +32,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String path = request.getServletPath();
 
-        // ✅ Chỉ áp dụng filter cho API
-        if (!path.startsWith("/api/")) {
+        // ✅ Skip JWT filter for WebSocket and non-API paths
+        if (!path.startsWith("/api/") || path.startsWith("/ws")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // Lấy token từ header
+        // ✅ Check if authentication already exists in SecurityContext (from session)
+        if (SecurityContextHolder.getContext().getAuthentication() != null &&
+                SecurityContextHolder.getContext().getAuthentication().isAuthenticated()) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        // ✅ Extract token from Authorization header
         final String authHeader = request.getHeader("Authorization");
         String username = null;
         String token = null;
@@ -52,13 +59,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
 
-        // Xác thực user nếu token hợp lệ
+        // ✅ Authenticate user if token is valid
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
             if (jwtUtil.validateToken(token)) {
                 UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                        new UsernamePasswordAuthenticationToken(
+                                userDetails,
+                                null,
+                                userDetails.getAuthorities()
+                        );
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
             }
