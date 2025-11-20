@@ -45,21 +45,23 @@
   min-height: 100vh;
   background: linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 50%, #0f0a1f 100%);
   position: relative;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   font-family: "Courier New", monospace;
 }
 
 .bg-animation {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   width: 100%;
-  height: 100%;
+  height: 100vh;
   background: radial-gradient(circle at 20% 50%, rgba(100, 200, 255, 0.1) 0%, transparent 50%),
     radial-gradient(circle at 80% 80%, rgba(255, 100, 200, 0.1) 0%, transparent 50%),
     radial-gradient(circle at 40% 20%, rgba(100, 255, 200, 0.1) 0%, transparent 50%);
   animation: pulse 15s ease-in-out infinite;
   pointer-events: none;
+  z-index: 0;
 }
 
 /* Back Button */
@@ -120,6 +122,7 @@
   justify-content: center;
   gap: 20px;
   margin-bottom: 15px;
+  flex-wrap: wrap;
 }
 
 .icon {
@@ -271,6 +274,7 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 15px;
+  gap: 10px;
 }
 
 .room-name {
@@ -279,6 +283,7 @@
   color: #00ff88;
   margin: 0;
   letter-spacing: 1px;
+  word-break: break-word;
 }
 
 .badge {
@@ -289,6 +294,7 @@
   font-size: 12px;
   font-weight: bold;
   box-shadow: 0 0 10px rgba(255, 100, 200, 0.5);
+  white-space: nowrap;
 }
 
 .room-info {
@@ -300,6 +306,7 @@
   justify-content: space-between;
   margin-bottom: 10px;
   font-size: 14px;
+  gap: 10px;
 }
 
 .info-label {
@@ -310,6 +317,7 @@
 
 .info-value {
   color: #fff;
+  text-align: right;
 }
 
 .join-btn {
@@ -369,5 +377,14 @@
   .back-btn {
     padding: 10px 16px;
     font-size: 12px;
+  }
+
+  .room-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .badge {
+    align-self: flex-start;
   }
 }

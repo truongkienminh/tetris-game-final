@@ -11,6 +11,8 @@ html, body {
   overflow: hidden;
   font-family: 'Arial', sans-serif;
   background: url('../images/tetris-wp.jpg');
+  background-size: cover;
+  background-attachment: fixed;
   color: white;
 }
 
@@ -22,7 +24,7 @@ html, body {
   width: 100vw;
   text-align: center;
   padding: 20px;
-  overflow: auto;
+  overflow: hidden;
   flex-direction: column;
   position: relative;
 }
@@ -53,66 +55,121 @@ html, body {
   50% { filter: drop-shadow(0 0 20px rgba(238, 9, 121, 0.5)); }
 }
 
-/* ===== FLEX CONTENT ===== */
-.solo-game-flex {
-  display: flex;
-  gap: 40px;
+/* ===== MAIN GAME LAYOUT ===== */
+.main-game-layout {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  gap: 30px;
+  width: 100%;
+  max-width: 1400px;
+  height: 100%;
   align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  max-width: 100%;
+  justify-items: center;
+  flex: 1;
 }
 
-/* ===== MULTI GAME CARD ===== */
-.multi-game-card {
-  display: grid;
-  grid-template-columns: auto min-content auto;
-  grid-template-rows: auto auto;
-  gap: 20px;
-  padding: 24px;
-  background: linear-gradient(135deg, rgba(26, 26, 46, 0.8), rgba(22, 33, 62, 0.8));
-  border: 2px solid rgba(255, 106, 0, 0.3);
+.side-player {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.left-player {
+  justify-content: flex-end;
+}
+
+.right-player {
+  justify-content: flex-start;
+}
+
+.center-player {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  position: relative;
+}
+
+.playing-indicator {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #ff6a00;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: bold;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* ===== GAME CARDS ===== */
+.game-card {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(26, 26, 46, 0.85), rgba(22, 33, 62, 0.85));
+  border: 2px solid rgba(255, 106, 0, 0.4);
   border-radius: 12px;
   box-shadow: 0 0 30px rgba(255, 106, 0, 0.2);
   backdrop-filter: blur(10px);
   transition: all 0.3s ease;
+  position: relative;
 }
 
-.multi-game-card:hover {
-  border-color: rgba(255, 106, 0, 0.5);
+.game-card:hover {
+  border-color: rgba(255, 106, 0, 0.6);
   box-shadow: 0 0 40px rgba(255, 106, 0, 0.3);
 }
 
-.multi-game-card.current-player {
+.game-card-current {
   border: 2px solid #ff6a00;
-  box-shadow: 
-    0 0 40px rgba(255, 106, 0, 0.4),
-    inset 0 0 30px rgba(255, 106, 0, 0.05);
-  background: linear-gradient(135deg, rgba(26, 26, 46, 0.95), rgba(22, 33, 62, 0.95));
+  box-shadow: 0 0 50px rgba(255, 106, 0, 0.5), inset 0 0 30px rgba(255, 106, 0, 0.05);
 }
 
-.multi-game-card.game-over-card {
+.game-card-over {
   opacity: 0.7;
-  filter: grayscale(30%);
-  transition: all 0.3s ease;
+  filter: grayscale(40%);
 }
 
-.multi-game-card.game-over-card:hover {
-  opacity: 0.85;
+.game-card-large {
+  padding: 30px;
+  width: 100%;
+  max-width: 500px;
 }
 
-/* ===== BOARD HEADER ===== */
-.board-header {
-  grid-column: 1 / -1;
-  grid-row: 1;
+.game-card-small {
+  padding: 16px;
+  width: 100%;
+  max-width: 280px;
+}
+
+/* ===== CARD HEADER ===== */
+.card-header {
   text-align: center;
-  margin-bottom: 0;
   padding-bottom: 12px;
   border-bottom: 2px solid rgba(255, 106, 0, 0.3);
 }
 
-.board-player-name {
-  font-size: 18px;
+.card-header-large {
+  margin-bottom: 10px;
+}
+
+.card-header-small {
+  margin-bottom: 8px;
+}
+
+.card-player-name {
   font-weight: 700;
   color: #ff6a00;
   margin: 0;
@@ -121,82 +178,47 @@ html, body {
   text-transform: uppercase;
 }
 
-/* ===== LEFT PANEL ===== */
-.solo-game-info-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  justify-content: flex-start;
-  min-width: 180px;
+.card-player-name-large {
+  font-size: 20px;
 }
 
-.solo-game-title {
-  font-size: 24px;
-  font-weight: 900;
-  margin: 0;
-  text-shadow: 0 0 20px rgba(255, 106, 0, 0.5), 2px 2px 8px #000;
-  letter-spacing: 2px;
-  background: linear-gradient(135deg, #ff6a00, #ee0979, #ff6a00);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+.card-player-name-small {
+  font-size: 14px;
 }
 
-/* Stat Cards */
-.stat-card {
-  background: linear-gradient(135deg, rgba(255, 106, 0, 0.1), rgba(238, 9, 121, 0.1));
-  border: 2px solid;
-  border-image: linear-gradient(135deg, #ff6a00, #ee0979) 1;
-  border-radius: 8px;
-  padding: 8px 12px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 6px 24px rgba(255, 106, 0, 0.2);
-  transition: all 0.3s ease;
-}
-
-.stat-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 32px rgba(255, 106, 0, 0.3);
-}
-
-.stat-label {
-  font-size: 10px;
-  font-weight: 600;
-  color: #ff6a00;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  margin-bottom: 6px;
-  opacity: 0.9;
-}
-
-.stat-value {
-  font-size: 32px;
-  font-weight: 900;
-  background: linear-gradient(135deg, #ffaa00, #ffff00);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  text-shadow: 0 0 10px rgba(255, 170, 0, 0.3);
-}
-
-/* ===== BOARD ===== */
+/* ===== GAME BOARD ===== */
 .solo-game-board {
   display: inline-block;
   background: linear-gradient(135deg, #1a1a2e, #16213e);
   padding: 10px;
   border-radius: 10px;
   border: 3px solid rgba(255, 106, 0, 0.4);
-  box-shadow: 
-    0 0 40px rgba(255, 106, 0, 0.4),
-    inset 0 0 30px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 40px rgba(255, 106, 0, 0.4), inset 0 0 30px rgba(0, 0, 0, 0.6);
+}
+
+.solo-game-board-large {
+  padding: 12px;
+}
+
+.solo-game-board-small {
+  padding: 8px;
 }
 
 .solo-game-cell {
-  width: 28px;
-  height: 28px;
-  margin: 1.5px;
   border-radius: 4px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   transition: all 0.1s ease;
+  margin: 1.5px;
+}
+
+.solo-game-cell-large {
+  width: 32px;
+  height: 32px;
+}
+
+.solo-game-cell-small {
+  width: 18px;
+  height: 18px;
 }
 
 .solo-game-cell-empty {
@@ -207,29 +229,82 @@ html, body {
 .solo-game-cell-filled {
   background: linear-gradient(135deg, var(--block-color), #0a0a1a);
   border: 2px solid var(--block-color);
-  box-shadow: 
-    0 0 12px var(--block-color),
-    0 0 24px var(--block-color33),
-    inset 0 2px 4px rgba(255, 255, 255, 0.3),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 12px var(--block-color), 0 0 24px var(--block-color33), inset 0 2px 4px rgba(255, 255, 255, 0.3), inset 0 -2px 4px rgba(0, 0, 0, 0.5);
 }
 
-/* ===== RIGHT PANEL ===== */
-.solo-game-right-panel {
+/* ===== CARD STATS ===== */
+.card-stats {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.card-stats-large {
+  gap: 15px;
+}
+
+.card-stats-small {
+  gap: 10px;
+}
+
+.stat-item {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  justify-content: flex-start;
-  min-width: 160px;
+  align-items: center;
+  background: linear-gradient(135deg, rgba(255, 106, 0, 0.1), rgba(238, 9, 121, 0.1));
+  border: 2px solid rgba(255, 106, 0, 0.3);
+  border-radius: 8px;
+  padding: 8px 12px;
+  backdrop-filter: blur(10px);
+  flex: 1;
 }
 
-.solo-game-right-panel h3 {
-  font-size: 14px;
+.stat-item-large {
+  padding: 10px 15px;
+}
+
+.stat-item-small {
+  padding: 6px 10px;
+}
+
+.stat-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #ff6a00;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+  opacity: 0.9;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 900;
+  background: linear-gradient(135deg, #ffaa00, #ffff00);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.stat-item-small .stat-value {
+  font-size: 18px;
+}
+
+/* ===== NEXT BLOCK SECTION ===== */
+.next-block-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.next-block-label {
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1.5px;
   color: #ff6a00;
-  margin-bottom: 8px;
+  margin: 0;
   text-shadow: 0 0 10px rgba(255, 106, 0, 0.3);
 }
 
@@ -239,24 +314,37 @@ html, body {
   padding: 12px;
   border-radius: 8px;
   border: 2px solid rgba(255, 106, 0, 0.3);
-  box-shadow: 
-    0 0 20px rgba(255, 106, 0, 0.1),
-    inset 0 0 15px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 20px rgba(255, 106, 0, 0.1), inset 0 0 15px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(10px);
 }
 
+.solo-next-block-container-small {
+  padding: 8px;
+}
+
+.solo-next-block-container-large {
+  padding: 14px;
+}
+
 .solo-next-cell {
-  width: 20px;
-  height: 20px;
-  margin: 2px;
   border-radius: 3px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   transition: all 0.1s ease;
+  margin: 2px;
+}
+
+.solo-next-cell-large {
+  width: 24px;
+  height: 24px;
+}
+
+.solo-next-cell-small {
+  width: 14px;
+  height: 14px;
 }
 
 .solo-next-cell-empty {
   background: transparent;
-  box-shadow: none;
 }
 
 .solo-next-cell-filled {
@@ -264,29 +352,40 @@ html, body {
   box-shadow: 0 0 8px var(--block-color), 0 0 16px var(--block-color33);
 }
 
-/* ===== BUTTON ===== */
-.solo-back-button {
+/* ===== CONTROLS HINT ===== */
+.controls-hint {
+  font-size: 11px;
+  color: #999;
+  text-align: center;
+  line-height: 1.6;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+}
+
+/* ===== FLOATING BACK BUTTON ===== */
+.floating-back-btn {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
   padding: 12px 24px;
-  font-size: 14px;
-  font-weight: 700;
+  background: linear-gradient(135deg, #00ff88, #00ccff);
+  border: 2px solid #00ff88;
   border-radius: 8px;
-  border: none;
+  color: #0a0e27;
+  font-size: 14px;
+  font-weight: bold;
   cursor: pointer;
-  background: linear-gradient(135deg, #ff6a00, #ee0979);
-  color: white;
   transition: all 0.3s ease;
-  box-shadow: 0 6px 20px rgba(255, 106, 0, 0.3);
+  box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);
   text-transform: uppercase;
   letter-spacing: 1px;
+  z-index: 200;
 }
 
-.solo-back-button:hover {
+.floating-back-btn:hover {
   transform: translateY(-3px);
-  box-shadow: 0 8px 28px rgba(255, 106, 0, 0.5);
-}
-
-.solo-back-button:active {
-  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0, 255, 136, 0.5);
 }
 
 /* ===== GAME OVER OVERLAY ===== */
@@ -306,12 +405,8 @@ html, body {
 }
 
 @keyframes fadeInOverlay {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .game-over-container {
@@ -321,21 +416,15 @@ html, body {
   padding: 40px;
   max-width: 600px;
   width: 90%;
-  max-height: 90vh;
+  max-height: 80vh;
   overflow-y: auto;
   box-shadow: 0 0 30px rgba(255, 106, 0, 0.5);
   animation: slideIn 0.5s ease-out;
 }
 
 @keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: scale(0.8);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .game-over-title {
@@ -359,23 +448,12 @@ html, body {
   animation: pulse 1.5s infinite;
 }
 
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.6;
-  }
-}
-
-/* ===== WATCH SECTION ===== */
-.watch-section {
+/* ===== ACTIVE PLAYERS SECTION ===== */
+.active-players-section {
   margin-bottom: 30px;
-  padding-bottom: 30px;
-  border-bottom: 2px solid rgba(255, 106, 0, 0.3);
 }
 
-.watch-title {
+.section-title {
   color: #00ff88;
   margin-bottom: 15px;
   text-align: center;
@@ -386,54 +464,40 @@ html, body {
   text-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
 }
 
-.watch-players-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.players-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 15px;
 }
 
-.watch-player-btn {
-  padding: 12px 15px;
+.player-card-small {
   background: rgba(0, 255, 136, 0.15);
-  color: #00ff88;
   border: 2px solid #00ff88;
   border-radius: 8px;
-  cursor: pointer;
+  padding: 12px;
+  text-align: center;
+}
+
+.player-card-name {
+  color: #00ff88;
   font-weight: bold;
   font-size: 14px;
-  transition: all 0.3s ease;
-  width: 100%;
-  text-align: left;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  margin-bottom: 5px;
 }
 
-.watch-player-btn:hover {
-  background: rgba(0, 255, 136, 0.25);
-  box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
-  transform: translateX(5px);
-}
-
-.watch-player-btn.active {
-  background: #00ff88;
-  color: #0a0e27;
-  box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
-  font-weight: 900;
+.player-card-score {
+  color: #fff;
+  font-size: 12px;
 }
 
 /* ===== FINISHED SECTION ===== */
 .finished-section {
   margin-bottom: 20px;
-}
-
-.finished-title {
-  color: #ff6a00;
-  margin-bottom: 12px;
-  text-align: center;
-  font-size: 14px;
-  font-weight: bold;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  padding: 20px;
+  background: rgba(76, 175, 80, 0.1);
+  border: 2px solid rgba(76, 175, 80, 0.3);
+  border-radius: 8px;
 }
 
 .finished-players-list {
@@ -441,7 +505,7 @@ html, body {
   flex-wrap: wrap;
   gap: 10px;
   justify-content: center;
-  margin-bottom: 20px;
+  margin-bottom: 0;
 }
 
 .finished-player-badge {
@@ -454,43 +518,6 @@ html, body {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  box-shadow: 0 0 10px rgba(255, 106, 0, 0.1);
-}
-
-.players-status {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.player-status-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background: rgba(255, 106, 0, 0.1);
-  border: 2px solid rgba(255, 106, 0, 0.3);
-  border-radius: 8px;
-  color: #fff;
-  font-size: 16px;
-  transition: all 0.3s ease;
-}
-
-.player-status-item.finished {
-  background: rgba(76, 175, 80, 0.2);
-  border-color: #4caf50;
-  box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
-}
-
-.status-icon {
-  font-size: 20px;
-  min-width: 24px;
-}
-
-.status-name {
-  flex: 1;
-  text-align: left;
-  font-weight: 600;
 }
 
 /* ===== RANKINGS SCREEN ===== */
@@ -499,12 +526,8 @@ html, body {
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .rankings-title {
@@ -530,7 +553,6 @@ html, body {
   background: linear-gradient(90deg, rgba(255, 106, 0, 0.15) 0%, rgba(255, 106, 0, 0.05) 100%);
   border: 2px solid rgba(255, 106, 0, 0.3);
   border-radius: 12px;
-  color: #fff;
   font-size: 18px;
   font-weight: 600;
   transition: all 0.3s ease;
@@ -539,7 +561,6 @@ html, body {
 .ranking-item:hover {
   transform: translateX(10px);
   background: linear-gradient(90deg, rgba(255, 106, 0, 0.25) 0%, rgba(255, 106, 0, 0.1) 100%);
-  box-shadow: 0 0 15px rgba(255, 106, 0, 0.3);
 }
 
 .ranking-item.rank-1 {
@@ -599,49 +620,67 @@ html, body {
   box-shadow: 0 6px 20px rgba(255, 106, 0, 0.5);
 }
 
-.back-to-lobby-btn:active {
-  transform: translateY(0);
-}
-
 /* ===== RESPONSIVE ===== */
 @media (max-width: 1200px) {
-  .multi-game-card {
-    grid-template-columns: auto min-content;
-    gap: 15px;
-    padding: 16px;
+  .main-game-layout {
+    grid-template-columns: 1fr 1.5fr 1fr;
+    gap: 20px;
   }
-  
-  .solo-game-right-panel {
+
+  .game-card-large {
+    max-width: 400px;
+  }
+
+  .game-card-small {
+    max-width: 220px;
+  }
+}
+
+@media (max-width: 992px) {
+  .main-game-layout {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
+  .side-player {
     display: none;
+  }
+
+  .center-player {
+    margin-bottom: 20px;
+  }
+
+  .game-card-large {
+    max-width: 500px;
+  }
+
+  .floating-back-btn {
+    bottom: 20px;
+    right: 20px;
   }
 }
 
 @media (max-width: 768px) {
-  .solo-game-flex {
-    gap: 20px;
+  .game-card {
+    padding: 16px;
   }
 
-  .multi-game-card {
-    grid-template-columns: min-content;
-    gap: 12px;
-    padding: 12px;
+  .game-card-large {
+    padding: 20px;
+    max-width: 100%;
   }
 
-  .solo-game-info-panel {
-    display: none;
+  .solo-game-cell-large {
+    width: 28px;
+    height: 28px;
   }
 
-  .solo-game-cell {
-    width: 24px;
-    height: 24px;
-  }
-
-  .solo-next-cell {
+  .solo-game-cell-small {
     width: 16px;
     height: 16px;
   }
 
-  .solo-game-title {
+  .card-player-name-large {
     font-size: 18px;
   }
 
@@ -651,48 +690,22 @@ html, body {
 
   .game-over-container {
     padding: 24px;
+    max-width: 90%;
   }
 
   .game-over-title {
     font-size: 36px;
-    margin-bottom: 20px;
   }
 
-  .watch-title {
-    font-size: 14px;
+  .players-grid {
+    grid-template-columns: 1fr;
   }
 
-  .watch-player-btn {
-    padding: 10px 12px;
+  .floating-back-btn {
+    bottom: 15px;
+    right: 15px;
+    padding: 10px 18px;
     font-size: 12px;
-  }
-
-  .finished-title {
-    font-size: 12px;
-  }
-
-  .finished-player-badge {
-    padding: 6px 10px;
-    font-size: 11px;
-  }
-
-  .rankings-title {
-    font-size: 22px;
-    margin-bottom: 15px;
-  }
-
-  .ranking-item {
-    padding: 12px 16px;
-    font-size: 16px;
-  }
-
-  .rank-score {
-    font-size: 18px;
-  }
-
-  .back-to-lobby-btn {
-    padding: 12px 16px;
-    font-size: 14px;
   }
 }
 
@@ -701,40 +714,39 @@ html, body {
     padding: 12px;
   }
 
-  .solo-game-flex {
+  .game-logo {
+    font-size: 24px;
+  }
+
+  .game-card {
     gap: 12px;
   }
 
-  .multi-game-card {
-    grid-template-columns: min-content;
-    gap: 10px;
-    padding: 10px;
+  .solo-game-cell-large {
+    width: 24px;
+    height: 24px;
   }
 
-  .solo-game-cell {
-    width: 20px;
-    height: 20px;
-    margin: 1px;
-  }
-
-  .solo-next-cell {
+  .solo-game-cell-small {
     width: 14px;
     height: 14px;
   }
 
-  .solo-back-button {
-    padding: 10px 16px;
-    font-size: 12px;
+  .card-player-name-large {
+    font-size: 16px;
   }
 
-  .game-over-overlay {
-    padding: 16px;
+  .stat-value {
+    font-size: 20px;
+  }
+
+  .stat-item-small .stat-value {
+    font-size: 14px;
   }
 
   .game-over-container {
     padding: 20px;
     border-radius: 16px;
-    max-width: 100%;
   }
 
   .game-over-title {
@@ -742,79 +754,12 @@ html, body {
     margin-bottom: 16px;
   }
 
-  .waiting-text {
-    font-size: 16px;
-    margin-bottom: 20px;
+  .section-title {
+    font-size: 14px;
   }
 
-  .watch-section {
-    margin-bottom: 20px;
-    padding-bottom: 20px;
-  }
-
-  .watch-title {
-    font-size: 12px;
-    margin-bottom: 10px;
-  }
-
-  .watch-players-list {
-    gap: 8px;
-  }
-
-  .watch-player-btn {
-    padding: 10px 12px;
-    font-size: 12px;
-  }
-
-  .finished-section {
-    margin-bottom: 15px;
-  }
-
-  .finished-title {
+  .floating-back-btn {
+    padding: 10px 16px;
     font-size: 11px;
-    margin-bottom: 8px;
-  }
-
-  .finished-players-list {
-    gap: 8px;
-    margin-bottom: 15px;
-  }
-
-  .finished-player-badge {
-    padding: 6px 10px;
-    font-size: 10px;
-  }
-
-  .player-status-item {
-    padding: 10px 12px;
-    font-size: 14px;
-  }
-
-  .rankings-title {
-    font-size: 18px;
-    margin-bottom: 12px;
-  }
-
-  .rankings-list {
-    gap: 10px;
-    margin-bottom: 20px;
-  }
-
-  .ranking-item {
-    padding: 10px 12px;
-    font-size: 14px;
-  }
-
-  .rank-medal {
-    font-size: 20px;
-  }
-
-  .rank-score {
-    font-size: 16px;
-  }
-
-  .back-to-lobby-btn {
-    padding: 12px 16px;
-    font-size: 13px;
   }
 }

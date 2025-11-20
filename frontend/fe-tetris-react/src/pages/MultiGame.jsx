@@ -36,7 +36,6 @@ export default function MultiGame() {
   const [rankings, setRankings] = useState(null);
   const [roomGameOver, setRoomGameOver] = useState(false);
   const [isCurrentPlayerGameOver, setIsCurrentPlayerGameOver] = useState(false);
-  const [watchingPlayerId, setWatchingPlayerId] = useState(null);
 
   const intervalRef = useRef(null);
   const stompClientRef = useRef(null);
@@ -48,15 +47,12 @@ export default function MultiGame() {
     return config;
   });
 
-  // ===== STOMP + SockJS setup =====
   const setupWebSocket = useCallback(() => {
     const token = localStorage.getItem("token");
     const socket = new SockJS(`${import.meta.env.VITE_API_URL.replace('/auth', '')}/ws`);
     const client = new Client({
       webSocketFactory: () => socket,
-      connectHeaders: {
-        token,
-      },
+      connectHeaders: { token },
       reconnectDelay: 5000,
       onConnect: () => {
         console.log("✅ STOMP connected for room:", roomId);
@@ -130,7 +126,6 @@ export default function MultiGame() {
     try {
       const res = await API.get("/player/me");
       setCurrentPlayerId(res.data.id);
-      setWatchingPlayerId(res.data.id);
     } catch (e) {
       console.error("❌ fetchCurrentPlayer:", e);
       setError("Cannot load current player");
@@ -271,16 +266,10 @@ export default function MultiGame() {
     };
   }, [fetchCurrentPlayer, fetchPlayers, fetchStates, startSync, stopSync, setupWebSocket]);
 
-  useEffect(() => {
-    console.log("🎮 Game over players updated:", Array.from(gameOverPlayers));
-    console.log("🎮 Current room game over status:", roomGameOver);
-    console.log("🏆 Rankings:", rankings);
-  }, [gameOverPlayers, roomGameOver, rankings]);
-
-  const renderBoard = (state) => {
-    if (!state?.board) return <div className="solo-game-board">Loading...</div>;
+  const renderBoard = (state, size = "large") => {
+    if (!state?.board) return <div className={`solo-game-board solo-game-board-${size}`}>Loading...</div>;
     return (
-      <div className="solo-game-board">
+      <div className={`solo-game-board solo-game-board-${size}`}>
         {state.board.map((row, y) => (
           <div key={y} style={{ display: "flex" }}>
             {row.map((cell, x) => {
@@ -289,7 +278,7 @@ export default function MultiGame() {
               return (
                 <div
                   key={`${x}-${y}`}
-                  className={`solo-game-cell ${cell ? "solo-game-cell-filled" : "solo-game-cell-empty"}`}
+                  className={`solo-game-cell solo-game-cell-${size} ${cell ? "solo-game-cell-filled" : "solo-game-cell-empty"}`}
                   style={cell ? { "--block-color": color, "--block-color33": color + "33" } : {}}
                 />
               );
@@ -300,24 +289,70 @@ export default function MultiGame() {
     );
   };
 
-  const renderNextBlock = (blockKey) => {
+  const renderNextBlock = (blockKey, size = "large") => {
     if (!blockKey || !TETRIMINO_SHAPES[blockKey]) return <p style={{ color: "#666" }}>...</p>;
     const shape = TETRIMINO_SHAPES[blockKey];
     const color = BLOCK_COLORS[blockKey] || "white";
 
     return (
-      <div className="solo-next-block-container">
+      <div className={`solo-next-block-container solo-next-block-container-${size}`}>
         {shape.map((row, y) => (
           <div key={y} style={{ display: "flex" }}>
             {row.map((cell, x) => (
               <div
                 key={x}
-                className={`solo-next-cell ${cell ? "solo-next-cell-filled" : "solo-next-cell-empty"}`}
+                className={`solo-next-cell solo-next-cell-${size} ${cell ? "solo-next-cell-filled" : "solo-next-cell-empty"}`}
                 style={cell ? { "--block-color": color, "--block-color33": color + "33" } : {}}
               />
             ))}
           </div>
         ))}
+      </div>
+    );
+  };
+
+  const renderGameCard = (player, isCurrent, size = "small") => {
+    const state = gameStates[player.id];
+    const isPlayerGameOver = gameOverPlayers.has(player.id);
+
+    return (
+      <div
+        key={player.id}
+        className={`game-card game-card-${size} ${isCurrent ? "game-card-current" : ""} ${isPlayerGameOver ? "game-card-over" : ""}`}
+      >
+        <div className={`card-header card-header-${size}`}>
+          <h3 className={`card-player-name card-player-name-${size}`}>
+            {isCurrent ? "🎮 YOU" : player.username}
+            {isPlayerGameOver && " ✅"}
+          </h3>
+        </div>
+
+        {renderBoard(state, size)}
+
+        <div className={`card-stats card-stats-${size}`}>
+          <div className={`stat-item stat-item-${size}`}>
+            <span className="stat-label">Score</span>
+            <span className="stat-value">{state?.score ?? 0}</span>
+          </div>
+          <div className={`stat-item stat-item-${size}`}>
+            <span className="stat-label">Level</span>
+            <span className="stat-value">{state?.level ?? 1}</span>
+          </div>
+        </div>
+
+        {isCurrent && (
+          <div className={`next-block-section next-block-section-${size}`}>
+            <p className="next-block-label">Next Block</p>
+            {renderNextBlock(state?.nextBlock, size)}
+          </div>
+        )}
+
+        {isCurrent && !isPlayerGameOver && (
+          <div className="controls-hint">
+            <div>⬅️ ROTATE • ← → MOVE</div>
+            <div>↓ TICK • SPACE DROP</div>
+          </div>
+        )}
       </div>
     );
   };
@@ -336,17 +371,14 @@ export default function MultiGame() {
               <p className="waiting-text">⏳ Waiting for all players to finish...</p>
 
               {activePlayers.length > 0 && (
-                <div className="watch-section">
-                  <h3 className="watch-title">👀 WATCH PLAYERS</h3>
-                  <div className="watch-players-list">
+                <div className="active-players-section">
+                  <h3 className="section-title">🎮 STILL PLAYING ({activePlayers.length})</h3>
+                  <div className="players-grid">
                     {activePlayers.map((p) => (
-                      <button
-                        key={p.id}
-                        onClick={() => setWatchingPlayerId(p.id)}
-                        className={`watch-player-btn ${watchingPlayerId === p.id ? "active" : ""}`}
-                      >
-                        🎮 {p.username} - Score: {gameStates[p.id]?.score ?? 0}
-                      </button>
+                      <div key={p.id} className="player-card-small">
+                        <div className="player-card-name">{p.username}</div>
+                        <div className="player-card-score">Score: {gameStates[p.id]?.score ?? 0}</div>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -354,9 +386,7 @@ export default function MultiGame() {
 
               {finishedPlayers.length > 0 && (
                 <div className="finished-section">
-                  <h3 className="finished-title">
-                    ✅ FINISHED ({finishedPlayers.length}/{players.length})
-                  </h3>
+                  <h3 className="section-title">✅ FINISHED ({finishedPlayers.length}/{players.length})</h3>
                   <div className="finished-players-list">
                     {finishedPlayers.map((p) => (
                       <div key={p.id} className="finished-player-badge">
@@ -367,10 +397,7 @@ export default function MultiGame() {
                 </div>
               )}
 
-              <button
-                onClick={handleBackToLobby}
-                className="back-to-lobby-btn"
-              >
+              <button onClick={handleBackToLobby} className="back-to-lobby-btn">
                 ← Back to Lobby
               </button>
             </div>
@@ -392,22 +419,7 @@ export default function MultiGame() {
                   <p style={{ color: "#999" }}>Loading rankings...</p>
                 )}
               </div>
-              <button
-                className="back-to-lobby-btn"
-                onClick={handleBackToLobby}
-                style={{
-                  padding: "12px 30px",
-                  marginTop: 20,
-                  background: "linear-gradient(135deg, #00ff88, #00ccff)",
-                  color: "#0a0e27",
-                  border: "2px solid #00ff88",
-                  borderRadius: "8px",
-                  fontSize: 16,
-                  fontWeight: "bold",
-                  cursor: "pointer",
-                  width: "100%",
-                }}
-              >
+              <button onClick={handleBackToLobby} className="back-to-lobby-btn">
                 Back to Lobby
               </button>
             </div>
@@ -431,86 +443,49 @@ export default function MultiGame() {
       </div>
     );
 
-  const displayedPlayerId = isCurrentPlayerGameOver && watchingPlayerId ? watchingPlayerId : currentPlayerId;
+  const currentPlayer = players.find(p => p.id === currentPlayerId);
+  const otherPlayers = players.filter(p => p.id !== currentPlayerId);
+  const leftPlayer = otherPlayers[0];
+  const rightPlayer = otherPlayers[1];
 
   return (
     <div className="solo-game-container">
       <div className="game-header">
         <h1 className="game-logo">🎮 TETRIS</h1>
       </div>
-      <div className="solo-game-flex">
-        {players.map((p) => {
-          const state = gameStates[p.id];
-          const isCurrent = p.id === currentPlayerId;
-          const isPlayerGameOver = gameOverPlayers.has(p.id);
-          const shouldDisplay = p.id === displayedPlayerId;
 
-          if (isCurrentPlayerGameOver && !shouldDisplay) {
-            return null;
-          }
+      <div className="main-game-layout">
+        {/* Left player */}
+        {leftPlayer && (
+          <div className="side-player left-player">
+            {renderGameCard(leftPlayer, false, "small")}
+          </div>
+        )}
 
-          return (
-            <div
-              key={p.id}
-              className={`multi-game-card ${isCurrent ? "current-player" : ""} ${isPlayerGameOver ? "game-over-card" : ""}`}
-            >
-              <div className="board-header">
-                <h3 className="board-player-name">
-                  {isCurrent ? "🎮 YOU" : p.username}
-                  {isPlayerGameOver && " ✅"}
-                  {!isCurrent && watchingPlayerId === p.id && isCurrentPlayerGameOver && " 👀"}
-                </h3>
-              </div>
+        {/* Center - Current player */}
+        {currentPlayer && (
+          <div className="center-player">
+            {renderGameCard(currentPlayer, true, "large")}
+            {!isCurrentPlayerGameOver && (
+              <div className="playing-indicator">🔴 PLAYING</div>
+            )}
+          </div>
+        )}
 
-              <div className="solo-game-info-panel" style={{ gridColumn: 1, gridRow: 2 }}>
-                <h2 className="solo-game-title">{p.username}</h2>
-                <div className="stat-card">
-                  <div className="stat-label">Score</div>
-                  <div className="stat-value">{state?.score ?? 0}</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-label">Level</div>
-                  <div className="stat-value">{state?.level ?? 1}</div>
-                </div>
-                {!isCurrent && (
-                  <div className="stat-card" style={{ marginTop: 10 }}>
-                    <div className="stat-label">Status</div>
-                    <div style={{ fontSize: 12, color: "#ff6a00" }}>
-                      {isPlayerGameOver ? "FINISHED ✅" : state?.status ?? "PLAYING"}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {renderBoard(state)}
-
-              <div className="solo-game-right-panel" style={{ display: "flex", flexDirection: "column", gap: 20, gridColumn: 3, gridRow: 2 }}>
-                <div>
-                  <h3 style={{ marginBottom: 10, fontSize: 14, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1.5, color: "#ff6a00" }}>
-                    Next Block
-                  </h3>
-                  {renderNextBlock(state?.nextBlock)}
-                </div>
-
-                {isCurrent && !isPlayerGameOver && (
-                  <>
-                    <div style={{ fontSize: 11, color: "#999", textAlign: "center", lineHeight: 1.6 }}>
-                      <div>↑ ROTATE • ← → MOVE</div>
-                      <div>↓ TICK • SPACE DROP</div>
-                    </div>
-                  </>
-                )}
-
-                {isCurrent && isPlayerGameOver && !roomGameOver && (
-                  <div style={{ fontSize: 12, color: "#ffaa00", textAlign: "center" }}>
-                    ⏳ Game Over - Check your options!
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
+        {/* Right player */}
+        {rightPlayer && (
+          <div className="side-player right-player">
+            {renderGameCard(rightPlayer, false, "small")}
+          </div>
+        )}
       </div>
+
+      {/* Back to lobby button - visible when game over */}
+      {isCurrentPlayerGameOver && (
+        <button className="floating-back-btn" onClick={handleBackToLobby}>
+          ← Back to Lobby
+        </button>
+      )}
 
       {isCurrentPlayerGameOver && renderGameOverScreen()}
     </div>
