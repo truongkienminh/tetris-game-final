@@ -1,6 +1,5 @@
 package kienminh.tetrisgame.config;
 
-import jakarta.servlet.http.HttpServletResponse;
 import kienminh.tetrisgame.service.impl.AuthServiceImpl;
 import kienminh.tetrisgame.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
@@ -53,11 +52,11 @@ public class SecurityConfig {
         return new JwtAuthenticationFilter(jwtUtil, userDetailsService);
     }
 
-    // CORS config cho React frontend
+    // CORS config
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("https://tetris-game-final-fe.onrender.com")); // frontend domain
+        config.setAllowedOriginPatterns(List.of("*"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
@@ -73,73 +72,59 @@ public class SecurityConfig {
                                                    AuthenticationProvider authenticationProvider) throws Exception {
 
         http
-                // Disable CSRF cho API
+                // ✅ Disable CSRF for stateless API + allow session for pages
                 .csrf(csrf -> csrf.disable())
 
-                // Enable CORS
+                // ✅ Enable CORS
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
-                // Security headers
+                // ✅ Security headers
                 .headers(headers -> headers
                         .frameOptions(frameOptions -> frameOptions.sameOrigin())
-                        .contentSecurityPolicy(csp -> csp.policyDirectives(
-                                "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'"
-                        ))
+                        .contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'"))
                 )
 
-                // Authorization rules
+                // ✅ Authorization rules
                 .authorizeHttpRequests(auth -> auth
-                        // API endpoints trả JSON
-                        .requestMatchers("/api/auth/**").permitAll()
-                        // Static resources
-                        .requestMatchers("/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
-                        // Websocket
-                        .requestMatchers("/ws", "/ws/**").permitAll()
-                        // Tất cả request còn lại cần auth
+                        .requestMatchers(
+                                "/api/auth/**",
+                                "/login", "/register",
+                                "/css/**", "/js/**", "/images/**", "/favicon.ico",
+                                "/swagger-ui/**", "/v3/api-docs/**",
+                                "/ws", "/ws/**"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 )
 
-                // Session management (chỉ cho Thymeleaf pages nếu có)
+                // ✅ Session management - Keep sessions alive for Thymeleaf pages
                 .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS) // JWT => Stateless
+                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                        .invalidSessionUrl("/login?invalid")
                 )
 
-                // Authentication provider
+                // ✅ Authentication provider
                 .authenticationProvider(authenticationProvider)
 
-                // JWT filter
+                // ✅ JWT filter before authentication
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
 
-                // Form login cho web pages (tùy chọn, nếu bạn vẫn dùng Thymeleaf)
+                // ✅ Form login (Thymeleaf)
                 .formLogin(form -> form
                         .loginPage("/login")
                         .defaultSuccessUrl("/mainmenu", true)
                         .permitAll()
                 )
 
-                // Logout config
+                // ✅ Logout configuration
                 .logout(logout -> logout
                         .logoutUrl("/logout")
                         .logoutSuccessUrl("/login?logout")
                         .invalidateHttpSession(true)
                         .deleteCookies("JSESSIONID")
                         .permitAll()
-                )
-
-                // Nếu request API chưa auth => trả JSON 401, không redirect
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint((request, response, authException) -> {
-                            String path = request.getRequestURI();
-                            if (path.startsWith("/api/")) {
-                                response.setContentType("application/json");
-                                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                                response.getWriter().write("{\"error\": \"Unauthorized\"}");
-                            } else {
-                                response.sendRedirect("/login");
-                            }
-                        })
                 );
 
         return http.build();
     }
+
 }
