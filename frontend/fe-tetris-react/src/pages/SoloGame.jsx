@@ -72,9 +72,23 @@ export default function SoloGame() {
   const navigate = useNavigate();
   const pollingActiveRef = useRef(false);
 
+  // Get base URL without /auth
+  const getApiUrl = () => {
+    const baseUrl = import.meta.env.VITE_API_URL;
+    return baseUrl.replace('/auth', '');
+  };
+
   const API = axios.create({
-    baseURL: `${import.meta.env.VITE_API_URL}/solo`,
-    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+    baseURL: `${getApiUrl()}/solo`,
+  });
+
+  // Add JWT interceptor
+  API.interceptors.request.use(config => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
   });
 
   // Start game
