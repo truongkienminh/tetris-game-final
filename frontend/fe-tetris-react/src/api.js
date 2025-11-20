@@ -1,11 +1,12 @@
 import axios from "axios";
 
-// URL base backend
+// Base URL từ biến môi trường
 const API = axios.create({
-  baseURL: "http://localhost:8080/api/auth",
+  baseURL: import.meta.env.VITE_API_URL,
+  withCredentials: true, // dùng nếu backend trả cookie
 });
 
-// ✅ Add JWT token to header if available
+// Thêm JWT token vào header
 API.interceptors.request.use(config => {
   const token = localStorage.getItem("token");
   if (token) {
@@ -14,15 +15,12 @@ API.interceptors.request.use(config => {
   return config;
 });
 
-// ✅ Handle 401 responses (token expired or invalid)
+// Xử lý lỗi 401
 API.interceptors.response.use(
   response => response,
   error => {
     if (error.response?.status === 401) {
-      // Token is invalid or expired
       localStorage.removeItem("token");
-      console.warn("⚠️ Unauthorized - Token cleared. Redirecting to login...");
-      // Optionally redirect to login
       window.location.href = "/login";
     }
     return Promise.reject(error);
