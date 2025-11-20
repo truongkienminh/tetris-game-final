@@ -36,13 +36,12 @@ export default function MultiGame() {
   const [rankings, setRankings] = useState(null);
   const [roomGameOver, setRoomGameOver] = useState(false);
   const [isCurrentPlayerGameOver, setIsCurrentPlayerGameOver] = useState(false);
-  // ✅ NEW: Track which player the user is watching
   const [watchingPlayerId, setWatchingPlayerId] = useState(null);
 
   const intervalRef = useRef(null);
   const stompClientRef = useRef(null);
 
-  const API = axios.create({ baseURL: "http://localhost:8080/api" });
+  const API = axios.create({ baseURL: `${import.meta.env.VITE_API_URL.replace('/auth', '')}/api` });
   API.interceptors.request.use((config) => {
     const token = localStorage.getItem("token");
     if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -52,7 +51,7 @@ export default function MultiGame() {
   // ===== STOMP + SockJS setup =====
   const setupWebSocket = useCallback(() => {
     const token = localStorage.getItem("token");
-    const socket = new SockJS("http://localhost:8080/ws");
+    const socket = new SockJS(`${import.meta.env.VITE_API_URL.replace('/auth', '')}/ws`);
     const client = new Client({
       webSocketFactory: () => socket,
       connectHeaders: {
@@ -131,7 +130,6 @@ export default function MultiGame() {
     try {
       const res = await API.get("/player/me");
       setCurrentPlayerId(res.data.id);
-      // ✅ Initialize watching self
       setWatchingPlayerId(res.data.id);
     } catch (e) {
       console.error("❌ fetchCurrentPlayer:", e);
@@ -206,7 +204,6 @@ export default function MultiGame() {
     [fetchStates]
   );
 
-  // ✅ Handle back to lobby
   const handleBackToLobby = useCallback(async () => {
     stopSync();
     if (stompClientRef.current) {
@@ -276,7 +273,7 @@ export default function MultiGame() {
 
   useEffect(() => {
     console.log("🎮 Game over players updated:", Array.from(gameOverPlayers));
-    console.log("🏁 Current room game over status:", roomGameOver);
+    console.log("🎮 Current room game over status:", roomGameOver);
     console.log("🏆 Rankings:", rankings);
   }, [gameOverPlayers, roomGameOver, rankings]);
 
@@ -325,7 +322,6 @@ export default function MultiGame() {
     );
   };
 
-  // ✅ NEW: Game Over Screen with Watch/Back options
   const renderGameOverScreen = () => {
     const activePlayers = players.filter(p => !gameOverPlayers.has(p.id));
     const finishedPlayers = players.filter(p => gameOverPlayers.has(p.id));
@@ -339,7 +335,6 @@ export default function MultiGame() {
             <div className="waiting-screen">
               <p className="waiting-text">⏳ Waiting for all players to finish...</p>
 
-              {/* ✅ Active Players Section */}
               {activePlayers.length > 0 && (
                 <div className="watch-section">
                   <h3 className="watch-title">👀 WATCH PLAYERS</h3>
@@ -357,7 +352,6 @@ export default function MultiGame() {
                 </div>
               )}
 
-              {/* ✅ Finished Players Status */}
               {finishedPlayers.length > 0 && (
                 <div className="finished-section">
                   <h3 className="finished-title">
@@ -373,7 +367,6 @@ export default function MultiGame() {
                 </div>
               )}
 
-              {/* ✅ Back to Lobby Button */}
               <button
                 onClick={handleBackToLobby}
                 className="back-to-lobby-btn"
@@ -438,7 +431,6 @@ export default function MultiGame() {
       </div>
     );
 
-  // ✅ Determine which player to display when game over
   const displayedPlayerId = isCurrentPlayerGameOver && watchingPlayerId ? watchingPlayerId : currentPlayerId;
 
   return (
@@ -451,7 +443,6 @@ export default function MultiGame() {
           const state = gameStates[p.id];
           const isCurrent = p.id === currentPlayerId;
           const isPlayerGameOver = gameOverPlayers.has(p.id);
-          // ✅ Show this player's board if we're watching them or they're current
           const shouldDisplay = p.id === displayedPlayerId;
 
           if (isCurrentPlayerGameOver && !shouldDisplay) {

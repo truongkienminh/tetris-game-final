@@ -6,7 +6,7 @@ import "../css/Room.css"; // Import CSS file
 
 // Axios instance cho Room API
 const ROOM_API = axios.create({
-  baseURL: "http://localhost:8080/api/rooms",
+  baseURL: `${import.meta.env.VITE_API_URL}/rooms`,
 });
 
 // Thêm JWT tự động

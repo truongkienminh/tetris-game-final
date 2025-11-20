@@ -73,7 +73,7 @@ export default function SoloGame() {
   const pollingActiveRef = useRef(false);
 
   const API = axios.create({
-    baseURL: "http://localhost:8080/api/solo",
+    baseURL: `${import.meta.env.VITE_API_URL}/solo`,
     headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
   });
 

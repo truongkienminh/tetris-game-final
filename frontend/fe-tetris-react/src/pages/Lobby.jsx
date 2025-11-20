@@ -4,8 +4,11 @@ import axios from "axios";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 
+// Get base API URL
+const getBaseUrl = () => import.meta.env.VITE_API_URL.replace('/auth', '');
+
 // Axios cho Room API
-const ROOM_API = axios.create({ baseURL: "http://localhost:8080/api/rooms" });
+const ROOM_API = axios.create({ baseURL: `${getBaseUrl()}/api/rooms` });
 ROOM_API.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -13,7 +16,7 @@ ROOM_API.interceptors.request.use((config) => {
 });
 
 // Axios cho MultiGame API
-const MULTIGAME_API = axios.create({ baseURL: "http://localhost:8080/api/multigame" });
+const MULTIGAME_API = axios.create({ baseURL: `${getBaseUrl()}/api/multigame` });
 MULTIGAME_API.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -111,7 +114,6 @@ export default function Lobby({ currentUser }) {
     }
     try {
       await MULTIGAME_API.post(`/start/${roomId}`);
-      // Host redirect ngay
       navigate(`/multigame/${roomId}`);
     } catch (err) {
       console.error("Error starting game:", err);
@@ -126,27 +128,22 @@ export default function Lobby({ currentUser }) {
     if (!roomId) return;
     const token = localStorage.getItem("token");
 
-    // 1) SockJS
-    const socket = new SockJS("http://localhost:8080/ws");
+    const socket = new SockJS(`${getBaseUrl()}/ws`);
 
-    // 2) STOMP client
     const stompClient = new Client({
       webSocketFactory: () => socket,
-      connectHeaders: { token }, // ✅ Use token header instead of Authorization
+      connectHeaders: { token },
       reconnectDelay: 5000,
       onConnect: () => {
         console.log("✅ Connected to STOMP WebSocket");
 
-        // ✅ Subscribe to room topic
         stompClient.subscribe(`/topic/room/${roomId}`, (message) => {
           try {
             const data = JSON.parse(message.body);
             console.log("📩 WS message received:", data);
 
-            // ✅ Check for GAME_START message
             if (data.type === "GAME_START") {
               console.log("🎮 Game started! Redirecting to multigame...");
-              // Redirect all players to game
               navigate(`/multigame/${roomId}`);
             }
           } catch (e) {
@@ -165,7 +162,6 @@ export default function Lobby({ currentUser }) {
     stompClientRef.current = stompClient;
     stompClient.activate();
 
-    // ✅ Poll room status as fallback
     let polling = true;
     const checkRoomStatus = async () => {
       if (!polling) return;

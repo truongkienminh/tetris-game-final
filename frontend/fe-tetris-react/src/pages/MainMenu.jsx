@@ -17,7 +17,7 @@ export default function MainMenu({ currentUser, onLogout }) {
       const token = localStorage.getItem("token");
       if (token) {
         await axios.post(
-          "http://localhost:8080/api/auth/logout",
+          `${import.meta.env.VITE_API_URL}/auth/logout`,
           {},
           { headers: { Authorization: `Bearer ${token}` } }
         );
