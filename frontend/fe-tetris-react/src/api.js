@@ -34,6 +34,6 @@ export const loginUser = (username, password) =>
   API.post("/auth/login", { username, password });
 
 export const getCurrentUser = () =>
-  API.get("auth/me");
+  API.get("/auth/me");
 
 export default API;
