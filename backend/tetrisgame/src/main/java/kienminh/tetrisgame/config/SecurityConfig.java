@@ -52,17 +52,16 @@ public class SecurityConfig {
         return new JwtAuthenticationFilter(jwtUtil, userDetailsService);
     }
 
-    // CORS config
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of(
                 "https://tetris-game-final-fe.onrender.com",
-                "http://localhost:5173"  // for local development
+                "http://localhost:5173"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
-        config.setAllowCredentials(false);  // JWT doesn't need credentials
+        config.setAllowCredentials(false);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
@@ -75,31 +74,37 @@ public class SecurityConfig {
                                                    AuthenticationProvider authenticationProvider) throws Exception {
 
         http
-                // CSRF disabled for stateless REST API
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf
+                        .ignoringRequestMatchers("/api/**")
+                )
 
-                // Enable CORS
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
-                // Stateless session for REST API with JWT
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
-                // Authorization rules
+                // ✅ IMPORTANT: Define authorization rules in correct order
                 .authorizeHttpRequests(auth -> auth
+                        // Public endpoints - no authentication needed
                         .requestMatchers(
-                                "/api/auth/**",
-                                "/swagger-ui/**", "/v3/api-docs/**",
-                                "/ws", "/ws/**"
+                                "/api/auth/register",
+                                "/api/auth/login",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+                                "/ws",
+                                "/ws/**"
                         ).permitAll()
+
+                        // ✅ ALL OTHER /api/** endpoints require authentication
+                        .requestMatchers("/api/**").authenticated()
+
+                        // Fallback - everything else requires authentication
                         .anyRequest().authenticated()
                 )
 
-                // Authentication provider
                 .authenticationProvider(authenticationProvider)
 
-                // JWT filter before authentication
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
