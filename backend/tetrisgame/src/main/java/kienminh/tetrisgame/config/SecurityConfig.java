@@ -52,6 +52,7 @@ public class SecurityConfig {
         return new JwtAuthenticationFilter(jwtUtil, userDetailsService);
     }
 
+    // CORS config
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
@@ -61,7 +62,7 @@ public class SecurityConfig {
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
-        config.setAllowCredentials(false);  // Changed to false since using JWT
+        config.setAllowCredentials(false);  // JWT doesn't need credentials
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
@@ -74,59 +75,33 @@ public class SecurityConfig {
                                                    AuthenticationProvider authenticationProvider) throws Exception {
 
         http
-                // ✅ Disable CSRF for stateless API + allow session for pages
+                // CSRF disabled for stateless REST API
                 .csrf(csrf -> csrf.disable())
 
-                // ✅ Enable CORS
+                // Enable CORS
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
-                // ✅ Security headers
-                .headers(headers -> headers
-                        .frameOptions(frameOptions -> frameOptions.sameOrigin())
-                        .contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'"))
+                // Stateless session for REST API with JWT
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
-                // ✅ Authorization rules
+                // Authorization rules
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api/auth/**",
-                                "/login", "/register",
-                                "/css/**", "/js/**", "/images/**", "/favicon.ico",
                                 "/swagger-ui/**", "/v3/api-docs/**",
                                 "/ws", "/ws/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
 
-                // ✅ Session management - Keep sessions alive for Thymeleaf pages
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                        .invalidSessionUrl("/login?invalid")
-                )
-
-                // ✅ Authentication provider
+                // Authentication provider
                 .authenticationProvider(authenticationProvider)
 
-                // ✅ JWT filter before authentication
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-
-                // ✅ Form login (Thymeleaf)
-                .formLogin(form -> form
-                        .loginPage("/login")
-                        .defaultSuccessUrl("/mainmenu", true)
-                        .permitAll()
-                )
-
-                // ✅ Logout configuration
-                .logout(logout -> logout
-                        .logoutUrl("/logout")
-                        .logoutSuccessUrl("/login?logout")
-                        .invalidateHttpSession(true)
-                        .deleteCookies("JSESSIONID")
-                        .permitAll()
-                );
+                // JWT filter before authentication
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
-
 }
