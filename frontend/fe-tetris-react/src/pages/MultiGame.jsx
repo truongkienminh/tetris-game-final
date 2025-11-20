@@ -36,6 +36,8 @@ export default function MultiGame() {
   const [rankings, setRankings] = useState(null);
   const [roomGameOver, setRoomGameOver] = useState(false);
   const [isCurrentPlayerGameOver, setIsCurrentPlayerGameOver] = useState(false);
+  // ✅ NEW: Track which player the user is watching
+  const [watchingPlayerId, setWatchingPlayerId] = useState(null);
 
   const intervalRef = useRef(null);
   const stompClientRef = useRef(null);
@@ -54,18 +56,16 @@ export default function MultiGame() {
     const client = new Client({
       webSocketFactory: () => socket,
       connectHeaders: {
-        token, // ✅ Send JWT token in header for WebSocket authentication
+        token,
       },
       reconnectDelay: 5000,
       onConnect: () => {
         console.log("✅ STOMP connected for room:", roomId);
 
-        // Subscribe to room topic
         client.subscribe(`/topic/room/${roomId}`, (frame) => {
           try {
             const message = JSON.parse(frame.body);
 
-            // Handle player game over
             if (message.type === "PLAYER_GAME_OVER") {
               console.log("✅ Player game over:", message.playerName, "Score:", message.score);
               setGameOverPlayers((prev) => new Set([...prev, message.playerId]));
@@ -82,15 +82,11 @@ export default function MultiGame() {
                   },
                 }));
               }
-            }
-            // Handle room game over with rankings
-            else if (message.type === "ROOM_GAME_OVER") {
+            } else if (message.type === "ROOM_GAME_OVER") {
               console.log("✅ Room game over - Rankings received");
               setRoomGameOver(true);
               if (message.rankings) setRankings(message.rankings);
-            }
-            // Handle tick updates
-            else if (message.type === "TICK_UPDATE") {
+            } else if (message.type === "TICK_UPDATE") {
               setGameStates((prev) => ({
                 ...prev,
                 [message.playerId]: {
@@ -101,9 +97,7 @@ export default function MultiGame() {
                   nextBlock: message.nextBlock,
                 },
               }));
-            }
-            // Handle game start
-            else if (message.type === "GAME_START" && String(message.roomId) === String(roomId)) {
+            } else if (message.type === "GAME_START" && String(message.roomId) === String(roomId)) {
               console.log("🎮 GAME_START received, game is starting.");
             }
           } catch (e) {
@@ -133,18 +127,18 @@ export default function MultiGame() {
     };
   }, [roomId]);
 
-  // ===== Fetch current player =====
   const fetchCurrentPlayer = useCallback(async () => {
     try {
       const res = await API.get("/player/me");
       setCurrentPlayerId(res.data.id);
+      // ✅ Initialize watching self
+      setWatchingPlayerId(res.data.id);
     } catch (e) {
       console.error("❌ fetchCurrentPlayer:", e);
       setError("Cannot load current player");
     }
   }, []);
 
-  // ===== Fetch players in room =====
   const fetchPlayers = useCallback(async () => {
     try {
       const res = await API.get(`/rooms/${roomId}`);
@@ -155,7 +149,6 @@ export default function MultiGame() {
     }
   }, [roomId]);
 
-  // ===== Fetch game states =====
   const fetchStates = useCallback(async () => {
     try {
       const res = await API.get(`/multigame/room/${roomId}/states`);
@@ -165,7 +158,6 @@ export default function MultiGame() {
     }
   }, [roomId]);
 
-  // ===== Check room completion =====
   const checkRoomCompletion = useCallback(async () => {
     try {
       const res = await API.get(`/multigame/room/${roomId}/isComplete`);
@@ -180,7 +172,6 @@ export default function MultiGame() {
     }
   }, [roomId]);
 
-  // ===== Sync game states periodically =====
   const startSync = useCallback(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -190,7 +181,6 @@ export default function MultiGame() {
     intervalRef.current = setInterval(async () => {
       await fetchStates();
 
-      // Check if current player is game over
       if (currentPlayerId && gameOverPlayers.has(currentPlayerId)) {
         await checkRoomCompletion();
       }
@@ -204,7 +194,6 @@ export default function MultiGame() {
     }
   }, []);
 
-  // ===== Send player action =====
   const sendAction = useCallback(
     async (playerId, action) => {
       try {
@@ -217,7 +206,7 @@ export default function MultiGame() {
     [fetchStates]
   );
 
-  // ===== Handle back to lobby =====
+  // ✅ Handle back to lobby
   const handleBackToLobby = useCallback(async () => {
     stopSync();
     if (stompClientRef.current) {
@@ -232,7 +221,6 @@ export default function MultiGame() {
     navigate(`/lobby/${roomId}`);
   }, [stopSync, navigate, roomId]);
 
-  // ===== Handle key press =====
   const onKeyDown = useCallback(
     (e) => {
       if (!currentPlayerId || isCurrentPlayerGameOver) return;
@@ -258,7 +246,6 @@ export default function MultiGame() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onKeyDown]);
 
-  // ===== Track current player game over state =====
   useEffect(() => {
     if (currentPlayerId && gameOverPlayers.has(currentPlayerId)) {
       console.log("✅ Current player is game over");
@@ -266,7 +253,6 @@ export default function MultiGame() {
     }
   }, [currentPlayerId, gameOverPlayers]);
 
-  // ===== Initial load =====
   useEffect(() => {
     fetchCurrentPlayer();
     fetchPlayers();
@@ -294,7 +280,6 @@ export default function MultiGame() {
     console.log("🏆 Rankings:", rankings);
   }, [gameOverPlayers, roomGameOver, rankings]);
 
-  // ===== Render board =====
   const renderBoard = (state) => {
     if (!state?.board) return <div className="solo-game-board">Loading...</div>;
     return (
@@ -318,7 +303,6 @@ export default function MultiGame() {
     );
   };
 
-  // ===== Render next block =====
   const renderNextBlock = (blockKey) => {
     if (!blockKey || !TETRIMINO_SHAPES[blockKey]) return <p style={{ color: "#666" }}>...</p>;
     const shape = TETRIMINO_SHAPES[blockKey];
@@ -341,27 +325,61 @@ export default function MultiGame() {
     );
   };
 
-  // ===== Render Game Over Screen =====
+  // ✅ NEW: Game Over Screen with Watch/Back options
   const renderGameOverScreen = () => {
+    const activePlayers = players.filter(p => !gameOverPlayers.has(p.id));
+    const finishedPlayers = players.filter(p => gameOverPlayers.has(p.id));
+
     return (
       <div className="game-over-overlay">
         <div className="game-over-container">
-          <h1 className="game-over-title">🎮 GAME OVER</h1>
+          <h1 className="game-over-title">💀 GAME OVER</h1>
 
           {!roomGameOver ? (
             <div className="waiting-screen">
               <p className="waiting-text">⏳ Waiting for all players to finish...</p>
-              <div className="players-status">
-                {players.map((p) => (
-                  <div
-                    key={p.id}
-                    className={`player-status-item ${gameOverPlayers.has(p.id) ? "finished" : "playing"}`}
-                  >
-                    <span className="status-icon">{gameOverPlayers.has(p.id) ? "✅" : "🎮"}</span>
-                    <span className="status-name">{p.username}</span>
+
+              {/* ✅ Active Players Section */}
+              {activePlayers.length > 0 && (
+                <div className="watch-section">
+                  <h3 className="watch-title">👀 WATCH PLAYERS</h3>
+                  <div className="watch-players-list">
+                    {activePlayers.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => setWatchingPlayerId(p.id)}
+                        className={`watch-player-btn ${watchingPlayerId === p.id ? "active" : ""}`}
+                      >
+                        🎮 {p.username} - Score: {gameStates[p.id]?.score ?? 0}
+                      </button>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
+
+              {/* ✅ Finished Players Status */}
+              {finishedPlayers.length > 0 && (
+                <div className="finished-section">
+                  <h3 className="finished-title">
+                    ✅ FINISHED ({finishedPlayers.length}/{players.length})
+                  </h3>
+                  <div className="finished-players-list">
+                    {finishedPlayers.map((p) => (
+                      <div key={p.id} className="finished-player-badge">
+                        {p.username} ({gameStates[p.id]?.score ?? 0})
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ✅ Back to Lobby Button */}
+              <button
+                onClick={handleBackToLobby}
+                className="back-to-lobby-btn"
+              >
+                ← Back to Lobby
+              </button>
             </div>
           ) : (
             <div className="rankings-screen">
@@ -381,7 +399,22 @@ export default function MultiGame() {
                   <p style={{ color: "#999" }}>Loading rankings...</p>
                 )}
               </div>
-              <button className="back-to-lobby-btn" onClick={handleBackToLobby}>
+              <button
+                className="back-to-lobby-btn"
+                onClick={handleBackToLobby}
+                style={{
+                  padding: "12px 30px",
+                  marginTop: 20,
+                  background: "linear-gradient(135deg, #00ff88, #00ccff)",
+                  color: "#0a0e27",
+                  border: "2px solid #00ff88",
+                  borderRadius: "8px",
+                  fontSize: 16,
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                  width: "100%",
+                }}
+              >
                 Back to Lobby
               </button>
             </div>
@@ -405,6 +438,9 @@ export default function MultiGame() {
       </div>
     );
 
+  // ✅ Determine which player to display when game over
+  const displayedPlayerId = isCurrentPlayerGameOver && watchingPlayerId ? watchingPlayerId : currentPlayerId;
+
   return (
     <div className="solo-game-container">
       <div className="game-header">
@@ -415,6 +451,12 @@ export default function MultiGame() {
           const state = gameStates[p.id];
           const isCurrent = p.id === currentPlayerId;
           const isPlayerGameOver = gameOverPlayers.has(p.id);
+          // ✅ Show this player's board if we're watching them or they're current
+          const shouldDisplay = p.id === displayedPlayerId;
+
+          if (isCurrentPlayerGameOver && !shouldDisplay) {
+            return null;
+          }
 
           return (
             <div
@@ -425,6 +467,7 @@ export default function MultiGame() {
                 <h3 className="board-player-name">
                   {isCurrent ? "🎮 YOU" : p.username}
                   {isPlayerGameOver && " ✅"}
+                  {!isCurrent && watchingPlayerId === p.id && isCurrentPlayerGameOver && " 👀"}
                 </h3>
               </div>
 
@@ -469,7 +512,7 @@ export default function MultiGame() {
 
                 {isCurrent && isPlayerGameOver && !roomGameOver && (
                   <div style={{ fontSize: 12, color: "#ffaa00", textAlign: "center" }}>
-                    ⏳ Waiting for others...
+                    ⏳ Game Over - Check your options!
                   </div>
                 )}
               </div>

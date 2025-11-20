@@ -321,6 +321,8 @@ html, body {
   padding: 40px;
   max-width: 600px;
   width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
   box-shadow: 0 0 30px rgba(255, 106, 0, 0.5);
   animation: slideIn 0.5s ease-out;
 }
@@ -364,6 +366,95 @@ html, body {
   50% {
     opacity: 0.6;
   }
+}
+
+/* ===== WATCH SECTION ===== */
+.watch-section {
+  margin-bottom: 30px;
+  padding-bottom: 30px;
+  border-bottom: 2px solid rgba(255, 106, 0, 0.3);
+}
+
+.watch-title {
+  color: #00ff88;
+  margin-bottom: 15px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+}
+
+.watch-players-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.watch-player-btn {
+  padding: 12px 15px;
+  background: rgba(0, 255, 136, 0.15);
+  color: #00ff88;
+  border: 2px solid #00ff88;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  width: 100%;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.watch-player-btn:hover {
+  background: rgba(0, 255, 136, 0.25);
+  box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+  transform: translateX(5px);
+}
+
+.watch-player-btn.active {
+  background: #00ff88;
+  color: #0a0e27;
+  box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+  font-weight: 900;
+}
+
+/* ===== FINISHED SECTION ===== */
+.finished-section {
+  margin-bottom: 20px;
+}
+
+.finished-title {
+  color: #ff6a00;
+  margin-bottom: 12px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.finished-players-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.finished-player-badge {
+  padding: 8px 12px;
+  background: rgba(255, 106, 0, 0.2);
+  border: 1px solid #ff6a00;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #ff6a00;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 0 10px rgba(255, 106, 0, 0.1);
 }
 
 .players-status {
@@ -567,6 +658,24 @@ html, body {
     margin-bottom: 20px;
   }
 
+  .watch-title {
+    font-size: 14px;
+  }
+
+  .watch-player-btn {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .finished-title {
+    font-size: 12px;
+  }
+
+  .finished-player-badge {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
   .rankings-title {
     font-size: 22px;
     margin-bottom: 15px;
@@ -636,6 +745,44 @@ html, body {
   .waiting-text {
     font-size: 16px;
     margin-bottom: 20px;
+  }
+
+  .watch-section {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+  }
+
+  .watch-title {
+    font-size: 12px;
+    margin-bottom: 10px;
+  }
+
+  .watch-players-list {
+    gap: 8px;
+  }
+
+  .watch-player-btn {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .finished-section {
+    margin-bottom: 15px;
+  }
+
+  .finished-title {
+    font-size: 11px;
+    margin-bottom: 8px;
+  }
+
+  .finished-players-list {
+    gap: 8px;
+    margin-bottom: 15px;
+  }
+
+  .finished-player-badge {
+    padding: 6px 10px;
+    font-size: 10px;
   }
 
   .player-status-item {
