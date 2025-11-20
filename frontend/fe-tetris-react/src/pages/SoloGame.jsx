@@ -261,11 +261,9 @@ export default function SoloGame() {
             </div>
           </div>
 
-          {!isGameOver && (
-            <button className="solo-back-button" onClick={() => navigate("/mainmenu")}>
-              Back to MainMenu
-            </button>
-          )}
+          <button className="solo-back-button" onClick={() => navigate("/mainmenu")}>
+            Back to MainMenu
+          </button>
         </div>
 
       </div>
