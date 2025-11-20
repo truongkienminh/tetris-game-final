@@ -111,12 +111,12 @@ export default function SoloGame() {
     }
   };
 
-  // Polling tráº¡ng thÃ¡i game
+  // Polling trạng thái game
   const startPolling = (pId) => {
     stopPolling();
     pollingActiveRef.current = true;
     intervalRef.current = setInterval(async () => {
-      // âœ… Double-check polling is still active
+      // ✅ Double-check polling is still active
       if (!pollingActiveRef.current) return;
 
       try {
@@ -124,7 +124,7 @@ export default function SoloGame() {
         const data = res.data;
         setGameState(data);
 
-        // âœ… Stop polling when game over is detected
+        // ✅ Stop polling when game over is detected
         if (data.status === "GAME_OVER") {
           pollingActiveRef.current = false;
           stopPolling();
@@ -132,7 +132,7 @@ export default function SoloGame() {
         }
       } catch (err) {
         console.error("Fetch state error:", err);
-        // âœ… Stop polling if game not found
+        // ✅ Stop polling if game not found
         if (err.response?.status === 400 || err.response?.data?.error?.includes("not found")) {
           pollingActiveRef.current = false;
           stopPolling();
@@ -155,14 +155,14 @@ export default function SoloGame() {
     return stopPolling;
   }, [userId]);
 
-  // Gá»­i action
+  // Gửi action
   const sendAction = async (action) => {
     if (!gameState || gameState.status === "GAME_OVER") return;
     try {
       const res = await API.post(`/${playerId}/action`, null, { params: { action } });
       setGameState(res.data);
 
-      // âœ… Stop polling immediately if game ends from this action
+      // ✅ Stop polling immediately if game ends from this action
       if (res.data.status === "GAME_OVER") {
         pollingActiveRef.current = false;
         stopPolling();
@@ -174,7 +174,7 @@ export default function SoloGame() {
     }
   };
 
-  // Xá»­ lÃ½ phÃ­m
+  // Xử lý phím
   const handleKeyDown = useCallback(
     (e) => {
       if (!gameState || gameState.status === "GAME_OVER") return;
@@ -198,21 +198,112 @@ export default function SoloGame() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
 
-  // Loading hoáº·c lá»—i
+  // Loading hoặc lỗi
   if (error) return <p style={{ color: "red", textAlign: "center" }}>{error}</p>;
   if (!gameState) return <p style={{ textAlign: "center", color: "white" }}>Loading game...</p>;
 
-  // Kiá»ƒm tra gameOver
+  // Kiểm tra gameOver
   const isGameOver = gameState.status === "GAME_OVER";
 
-  // Render game bÃ¬nh thÆ°á»ng + Game Over Modal (if needed)
+  // Game Over Modal
+  if (isGameOver) {
+    return (
+      <div className="solo-game-container">
+        <div className={`solo-game-flex ${isGameOver ? 'game-over-active' : ''}`}>
+          {/* Left panel: game title + score */}
+          <div className="solo-game-info-panel">
+            <h2 className="solo-game-title" style={{ margin: 0 }}>🎮 Solo Tetris Game</h2>
+            <div className="stat-card">
+              <div className="stat-label">Score</div>
+              <div className="stat-value">{gameState.score}</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Level</div>
+              <div className="stat-value">{gameState.level}</div>
+            </div>
+          </div>
+
+          {/* Board */}
+          <div className="solo-game-board">
+            {gameState.board.map((row, y) => (
+              <div key={y} style={{ display: "flex" }}>
+                {row.map((cell, x) => {
+                  const blockKey = COLOR_MAP[cell] || "0";
+                  const color = BLOCK_COLORS[blockKey];
+                  return (
+                    <div
+                      key={x}
+                      className={`solo-game-cell ${cell ? "solo-game-cell-filled" : "solo-game-cell-empty"}`}
+                      style={cell ? { "--block-color": color, "--block-color33": color + "33" } : {}}
+                    />
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+
+          {/* Right panel: Next Block */}
+          <div className="solo-game-right-panel">
+            <div>
+              <h3 style={{ marginBottom: "10px" }}>Next Block</h3>
+              <div className="solo-next-block-container">
+                {(BLOCK_SHAPES[gameState.nextBlock] || [[]]).map((row, y) => (
+                  <div key={y} style={{ display: "flex" }}>
+                    {row.map((cell, x) => (
+                      <div
+                        key={x}
+                        className={`solo-next-cell ${cell ? "solo-next-cell-filled" : "solo-next-cell-empty"}`}
+                        style={cell ? { "--block-color": BLOCK_COLORS[gameState.nextBlock], "--block-color33": BLOCK_COLORS[gameState.nextBlock] + "33" } : {}}
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Centered Game Over Modal */}
+        <div className="game-over-overlay">
+          <div className="game-over-modal">
+            <h2 className="game-over-text">💀 GAME OVER 💀</h2>
+            
+            <div className="game-over-score-label">Final Score</div>
+            <div className="game-over-score">{gameState.score}</div>
+            
+            <div className="game-over-stats">
+              <div className="game-over-stat-item">
+                <div className="game-over-stat-label">Level</div>
+                <div className="game-over-stat-value">{gameState.level}</div>
+              </div>
+              <div className="game-over-stat-item">
+                <div className="game-over-stat-label">Lines Cleared</div>
+                <div className="game-over-stat-value">{gameState.linesCleared || 0}</div>
+              </div>
+            </div>
+
+            <div className="game-over-button-group">
+              <button className="game-over-button" onClick={startGame}>
+                Play Again
+              </button>
+              <button className="game-over-button" onClick={() => navigate("/mainmenu")}>
+                Back to Menu
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Render game bình thường
   return (
     <div className="solo-game-container">
-      <div className={`solo-game-flex ${isGameOver ? 'game-over-active' : ''}`}>
+      <div className="solo-game-flex">
 
         {/* Left panel: game title + score */}
         <div className="solo-game-info-panel" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          <h2 className="solo-game-title" style={{ margin: 0 }}>ðŸŽ® Solo Tetris Game</h2>
+          <h2 className="solo-game-title" style={{ margin: 0 }}>🎮 Solo Tetris Game</h2>
           <div className="stat-card">
             <div className="stat-label">Score</div>
             <div className="stat-value">{gameState.score}</div>
@@ -267,38 +358,6 @@ export default function SoloGame() {
         </div>
 
       </div>
-
-      {/* Game Over Modal - Only renders when game is over */}
-      {isGameOver && (
-        <div className="game-over-overlay">
-          <div className="game-over-modal">
-            <h2 className="game-over-text">ðŸ'€ GAME OVER ðŸ'€</h2>
-            
-            <div className="game-over-score-label">Final Score</div>
-            <div className="game-over-score">{gameState.score}</div>
-            
-            <div className="game-over-stats">
-              <div className="game-over-stat-item">
-                <div className="game-over-stat-label">Level</div>
-                <div className="game-over-stat-value">{gameState.level}</div>
-              </div>
-              <div className="game-over-stat-item">
-                <div className="game-over-stat-label">Lines Cleared</div>
-                <div className="game-over-stat-value">{gameState.linesCleared || 0}</div>
-              </div>
-            </div>
-
-            <div className="game-over-button-group">
-              <button className="game-over-button" onClick={startGame}>
-                Play Again
-              </button>
-              <button className="game-over-button" onClick={() => navigate("/mainmenu")}>
-                Back to Menu
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
