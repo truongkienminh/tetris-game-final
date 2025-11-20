@@ -28,12 +28,12 @@ API.interceptors.response.use(
 
 // API
 export const registerUser = (username, password) =>
-  API.post("/api/auth/register", { username, password });
+  API.post("/auth/register", { username, password });
 
 export const loginUser = (username, password) =>
-  API.post("/api/auth/login", { username, password });
+  API.post("/auth/login", { username, password });
 
 export const getCurrentUser = () =>
-  API.get("/api/auth/me");
+  API.get("auth/me");
 
 export default API;
