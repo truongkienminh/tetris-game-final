@@ -1,12 +1,11 @@
 import axios from "axios";
 
-// Base URL từ biến môi trường
 const API = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
-  withCredentials: true, // dùng nếu backend trả cookie
+  // withCredentials: true, // nếu dùng JWT header thì bỏ
 });
 
-// Thêm JWT token vào header
+// JWT interceptor
 API.interceptors.request.use(config => {
   const token = localStorage.getItem("token");
   if (token) {
@@ -27,11 +26,14 @@ API.interceptors.response.use(
   }
 );
 
+// API
 export const registerUser = (username, password) =>
-  API.post("/register", { username, password });
+  API.post("/api/auth/register", { username, password });
 
 export const loginUser = (username, password) =>
-  API.post("/login", { username, password });
+  API.post("/api/auth/login", { username, password });
 
 export const getCurrentUser = () =>
-  API.get("/me");
+  API.get("/api/auth/me");
+
+export default API;

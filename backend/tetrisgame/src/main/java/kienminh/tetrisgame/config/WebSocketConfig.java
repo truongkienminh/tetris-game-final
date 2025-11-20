@@ -25,8 +25,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                         "http://localhost:5173",      // Vite dev server
                         "http://localhost:3000",      // Alternative dev port
                         "http://127.0.0.1:5173",
-                        "http://127.0.0.1:3000"
-                        // Add your production domain here: "https://yourdomain.com"
+                        "http://127.0.0.1:3000",
+                        "https://tetris-game-final-fe.onrender.com"
                 )
                 // ✅ Enable SockJS for better browser compatibility
                 .withSockJS();
