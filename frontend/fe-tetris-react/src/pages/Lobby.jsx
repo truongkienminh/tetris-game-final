@@ -4,19 +4,33 @@ import axios from "axios";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 
-// Get base API URL
-const getBaseUrl = () => import.meta.env.VITE_API_URL.replace('/auth', '');
+// ✅ FIXED: Correctly extract base URLs
+const getApiUrl = () => {
+  // VITE_API_URL = https://tetris-game-final.onrender.com/api
+  // Return as-is, it already has /api
+  return import.meta.env.VITE_API_URL;
+};
 
-// Axios cho Room API
-const ROOM_API = axios.create({ baseURL: `${getBaseUrl()}/api/rooms` });
+const getBaseUrl = () => {
+  // For WebSocket, remove /api to get domain only
+  return import.meta.env.VITE_API_URL.replace('/api', '');
+};
+
+// ✅ FIXED: Use correct base URLs
+const ROOM_API = axios.create({ 
+  baseURL: `${getApiUrl()}/rooms`
+});
+
 ROOM_API.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
-// Axios cho MultiGame API
-const MULTIGAME_API = axios.create({ baseURL: `${getBaseUrl()}/api/multigame` });
+const MULTIGAME_API = axios.create({ 
+  baseURL: `${getApiUrl()}/multigame`
+});
+
 MULTIGAME_API.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -66,9 +80,7 @@ export default function Lobby({ currentUser }) {
   const [loading, setLoading] = useState(true);
   const stompClientRef = useRef(null);
 
-  // ======================
-  // Lấy thông tin room
-  // ======================
+  // Fetch room info
   const fetchRoom = async () => {
     try {
       const res = await ROOM_API.get(`/${roomId}`);
@@ -82,19 +94,15 @@ export default function Lobby({ currentUser }) {
 
   useEffect(() => {
     fetchRoom();
-    const interval = setInterval(fetchRoom, 3000); // polling fallback
+    const interval = setInterval(fetchRoom, 3000);
     return () => clearInterval(interval);
   }, [roomId]);
 
-  // ======================
-  // Xác định host
-  // ======================
+  // Check if current user is host
   const isHost = room && currentUser &&
     currentUser.username?.toLowerCase() === room.hostUsername?.toLowerCase();
 
-  // ======================
-  // Rời room
-  // ======================
+  // Leave room
   const handleLeave = async () => {
     try {
       await ROOM_API.post(`/${roomId}/leave`);
@@ -104,9 +112,7 @@ export default function Lobby({ currentUser }) {
     }
   };
 
-  // ======================
-  // Host start game
-  // ======================
+  // Start game (host only)
   const handleStartGame = async () => {
     if (!isHost) {
       alert("Only host can start the game!");
@@ -121,9 +127,7 @@ export default function Lobby({ currentUser }) {
     }
   };
 
-  // ======================
-  // WebSocket STOMP + Poll room status
-  // ======================
+  // WebSocket connection
   useEffect(() => {
     if (!roomId) return;
     const token = localStorage.getItem("token");
@@ -191,9 +195,6 @@ export default function Lobby({ currentUser }) {
     };
   }, [roomId, navigate]);
 
-  // ======================
-  // Render
-  // ======================
   if (loading) return <><style>{styles}</style><div className="lobby-container"><div className="loading">Loading lobby...</div></div></>;
   if (!room) return <><style>{styles}</style><div className="lobby-container"><div className="error">Room not found.</div></div></>;
 

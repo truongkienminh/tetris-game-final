@@ -24,6 +24,15 @@ const TETRIMINO_SHAPES = {
   L: [[0, 0, 1], [1, 1, 1], [0, 0, 0]],
 };
 
+// ✅ FIXED: Correctly extract URLs
+const getApiUrl = () => {
+  return import.meta.env.VITE_API_URL;
+};
+
+const getBaseUrl = () => {
+  return import.meta.env.VITE_API_URL.replace('/api', '');
+};
+
 export default function MultiGame() {
   const { roomId } = useParams();
   const navigate = useNavigate();
@@ -40,7 +49,8 @@ export default function MultiGame() {
   const intervalRef = useRef(null);
   const stompClientRef = useRef(null);
 
-  const API = axios.create({ baseURL: `${import.meta.env.VITE_API_URL.replace('/auth', '')}/api` });
+  // ✅ FIXED: Use correct API URL
+  const API = axios.create({ baseURL: getApiUrl() });
   API.interceptors.request.use((config) => {
     const token = localStorage.getItem("token");
     if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -49,10 +59,10 @@ export default function MultiGame() {
 
   const setupWebSocket = useCallback(() => {
     const token = localStorage.getItem("token");
-    const socket = new SockJS(`${import.meta.env.VITE_API_URL.replace('/auth', '')}/ws`);
+    const socket = new SockJS(`${getBaseUrl()}/ws`);
     const client = new Client({
       webSocketFactory: () => socket,
-      connectHeaders: { token : token },
+      connectHeaders: { token: token },
       reconnectDelay: 5000,
       onConnect: () => {
         console.log("✅ STOMP connected for room:", roomId);
@@ -349,7 +359,7 @@ export default function MultiGame() {
 
         {isCurrent && !isPlayerGameOver && (
           <div className="controls-hint">
-            <div>⬅️ ROTATE • ← → MOVE</div>
+            <div>⬅️ ROTATE • ↑ ↓ MOVE</div>
             <div>↓ TICK • SPACE DROP</div>
           </div>
         )}
@@ -364,7 +374,7 @@ export default function MultiGame() {
     return (
       <div className="game-over-overlay">
         <div className="game-over-container">
-          <h1 className="game-over-title">💀 GAME OVER</h1>
+          <h1 className="game-over-title">👻 GAME OVER</h1>
 
           {!roomGameOver ? (
             <div className="waiting-screen">
@@ -455,14 +465,12 @@ export default function MultiGame() {
       </div>
 
       <div className="main-game-layout">
-        {/* Left player */}
         {leftPlayer && (
           <div className="side-player left-player">
             {renderGameCard(leftPlayer, false, "small")}
           </div>
         )}
 
-        {/* Center - Current player */}
         {currentPlayer && (
           <div className="center-player">
             {renderGameCard(currentPlayer, true, "large")}
@@ -472,7 +480,6 @@ export default function MultiGame() {
           </div>
         )}
 
-        {/* Right player */}
         {rightPlayer && (
           <div className="side-player right-player">
             {renderGameCard(rightPlayer, false, "small")}
@@ -480,7 +487,6 @@ export default function MultiGame() {
         )}
       </div>
 
-      {/* Back to lobby button - visible when game over */}
       {isCurrentPlayerGameOver && (
         <button className="floating-back-btn" onClick={handleBackToLobby}>
           ← Back to Lobby
