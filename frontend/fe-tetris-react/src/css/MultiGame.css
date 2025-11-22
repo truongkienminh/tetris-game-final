@@ -23,7 +23,7 @@ html, body {
   height: 100vh;
   width: 100vw;
   text-align: center;
-  padding: 20px;
+  padding: clamp(10px, 2vw, 20px);
   overflow: hidden;
   flex-direction: column;
   position: relative;
@@ -32,17 +32,17 @@ html, body {
 /* ===== GAME HEADER ===== */
 .game-header {
   position: absolute;
-  top: 20px;
-  left: 20px;
+  top: clamp(10px, 2vh, 20px);
+  left: clamp(10px, 2vw, 20px);
   z-index: 100;
 }
 
 .game-logo {
-  font-size: 32px;
+  font-size: clamp(20px, 5vw, 32px);
   font-weight: 900;
   margin: 0;
   text-shadow: 0 0 20px rgba(255, 106, 0, 0.6), 2px 2px 8px #000;
-  letter-spacing: 3px;
+  letter-spacing: clamp(1px, 0.5vw, 3px);
   background: linear-gradient(135deg, #ff6a00, #ee0979, #ff6a00);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -59,13 +59,14 @@ html, body {
 .main-game-layout {
   display: grid;
   grid-template-columns: 1fr 2fr 1fr;
-  gap: 30px;
+  gap: clamp(15px, 3vw, 30px);
   width: 100%;
-  max-width: 1400px;
+  max-width: 1600px;
   height: 100%;
   align-items: center;
   justify-items: center;
   flex: 1;
+  padding: clamp(10px, 2vh, 20px);
 }
 
 .side-player {
@@ -74,6 +75,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 0;
 }
 
 .left-player {
@@ -92,6 +94,7 @@ html, body {
   justify-content: center;
   flex-direction: column;
   position: relative;
+  min-width: 0;
 }
 
 .playing-indicator {
@@ -100,9 +103,9 @@ html, body {
   right: 10px;
   background: #ff6a00;
   color: white;
-  padding: 6px 12px;
+  padding: clamp(4px, 1vh, 6px) clamp(8px, 2vw, 12px);
   border-radius: 20px;
-  font-size: 12px;
+  font-size: clamp(10px, 1.5vw, 12px);
   font-weight: bold;
   animation: pulse 1.5s infinite;
 }
@@ -116,8 +119,8 @@ html, body {
 .game-card {
   display: flex;
   flex-direction: column;
-  gap: 15px;
-  padding: 20px;
+  gap: clamp(10px, 2vh, 15px);
+  padding: clamp(12px, 2.5vw, 30px);
   background: linear-gradient(135deg, rgba(26, 26, 46, 0.85), rgba(22, 33, 62, 0.85));
   border: 2px solid rgba(255, 106, 0, 0.4);
   border-radius: 12px;
@@ -125,6 +128,10 @@ html, body {
   backdrop-filter: blur(10px);
   transition: all 0.3s ease;
   position: relative;
+  width: 100%;
+  height: fit-content;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .game-card:hover {
@@ -143,30 +150,18 @@ html, body {
 }
 
 .game-card-large {
-  padding: 30px;
-  width: 100%;
-  max-width: 500px;
+  max-width: clamp(300px, 80vw, 550px);
 }
 
 .game-card-small {
-  padding: 16px;
-  width: 100%;
-  max-width: 280px;
+  max-width: clamp(200px, 60vw, 320px);
 }
 
 /* ===== CARD HEADER ===== */
 .card-header {
   text-align: center;
-  padding-bottom: 12px;
+  padding-bottom: clamp(8px, 1.5vh, 12px);
   border-bottom: 2px solid rgba(255, 106, 0, 0.3);
-}
-
-.card-header-large {
-  margin-bottom: 10px;
-}
-
-.card-header-small {
-  margin-bottom: 8px;
 }
 
 .card-player-name {
@@ -179,46 +174,38 @@ html, body {
 }
 
 .card-player-name-large {
-  font-size: 20px;
+  font-size: clamp(16px, 3vw, 20px);
 }
 
 .card-player-name-small {
-  font-size: 14px;
+  font-size: clamp(12px, 2.5vw, 14px);
 }
 
 /* ===== GAME BOARD ===== */
 .solo-game-board {
   display: inline-block;
   background: linear-gradient(135deg, #1a1a2e, #16213e);
-  padding: 10px;
+  padding: clamp(6px, 1vw, 12px);
   border-radius: 10px;
   border: 3px solid rgba(255, 106, 0, 0.4);
   box-shadow: 0 0 40px rgba(255, 106, 0, 0.4), inset 0 0 30px rgba(0, 0, 0, 0.6);
-}
-
-.solo-game-board-large {
-  padding: 12px;
-}
-
-.solo-game-board-small {
-  padding: 8px;
 }
 
 .solo-game-cell {
   border-radius: 4px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   transition: all 0.1s ease;
-  margin: 1.5px;
+  margin: clamp(1px, 0.5vw, 1.5px);
 }
 
 .solo-game-cell-large {
-  width: 32px;
-  height: 32px;
+  width: clamp(20px, 3vw, 32px);
+  height: clamp(20px, 3vw, 32px);
 }
 
 .solo-game-cell-small {
-  width: 18px;
-  height: 18px;
+  width: clamp(12px, 2vw, 18px);
+  height: clamp(12px, 2vw, 18px);
 }
 
 .solo-game-cell-empty {
@@ -235,16 +222,9 @@ html, body {
 /* ===== CARD STATS ===== */
 .card-stats {
   display: flex;
-  gap: 12px;
+  gap: clamp(8px, 1.5vw, 15px);
   justify-content: center;
-}
-
-.card-stats-large {
-  gap: 15px;
-}
-
-.card-stats-small {
-  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .stat-item {
@@ -254,21 +234,14 @@ html, body {
   background: linear-gradient(135deg, rgba(255, 106, 0, 0.1), rgba(238, 9, 121, 0.1));
   border: 2px solid rgba(255, 106, 0, 0.3);
   border-radius: 8px;
-  padding: 8px 12px;
+  padding: clamp(6px, 1.5vw, 15px);
   backdrop-filter: blur(10px);
   flex: 1;
-}
-
-.stat-item-large {
-  padding: 10px 15px;
-}
-
-.stat-item-small {
-  padding: 6px 10px;
+  min-width: 70px;
 }
 
 .stat-label {
-  font-size: 10px;
+  font-size: clamp(9px, 1.2vw, 10px);
   font-weight: 600;
   color: #ff6a00;
   text-transform: uppercase;
@@ -278,7 +251,7 @@ html, body {
 }
 
 .stat-value {
-  font-size: 28px;
+  font-size: clamp(18px, 2.5vw, 28px);
   font-weight: 900;
   background: linear-gradient(135deg, #ffaa00, #ffff00);
   -webkit-background-clip: text;
@@ -286,8 +259,52 @@ html, body {
   background-clip: text;
 }
 
-.stat-item-small .stat-value {
-  font-size: 18px;
+/* ===== GAME OVER BADGE ===== */
+.game-over-badge {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 52, 52, 0.95);
+  border: 3px solid #ff3434;
+  border-radius: 12px;
+  padding: clamp(12px, 2.5vw, 20px) clamp(16px, 3vw, 28px);
+  font-size: clamp(20px, 4vw, 32px);
+  font-weight: 900;
+  color: white;
+  text-shadow: 0 0 10px rgba(255, 52, 52, 0.8);
+  animation: gameOverBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 0 30px rgba(255, 52, 52, 0.6), inset 0 0 20px rgba(255, 52, 52, 0.2);
+  z-index: 50;
+  letter-spacing: 2px;
+  pointer-events: none;
+}
+
+@keyframes gameOverBounce {
+  0% {
+    transform: translate(-50%, -50%) scale(0.3);
+    opacity: 0;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+.game-over-badge.pulse {
+  animation: gameOverPulse 1s ease-in-out infinite;
+}
+
+@keyframes gameOverPulse {
+  0%, 100% {
+    box-shadow: 0 0 30px rgba(255, 52, 52, 0.6), inset 0 0 20px rgba(255, 52, 52, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 50px rgba(255, 52, 52, 0.8), inset 0 0 30px rgba(255, 52, 52, 0.3);
+  }
 }
 
 /* ===== NEXT BLOCK SECTION ===== */
@@ -295,11 +312,11 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: clamp(4px, 1vh, 8px);
 }
 
 .next-block-label {
-  font-size: 12px;
+  font-size: clamp(10px, 1.5vw, 12px);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1.5px;
@@ -311,19 +328,11 @@ html, body {
 .solo-next-block-container {
   display: inline-block;
   background: linear-gradient(135deg, rgba(255, 106, 0, 0.05), rgba(238, 9, 121, 0.05));
-  padding: 12px;
+  padding: clamp(8px, 1.5vw, 14px);
   border-radius: 8px;
   border: 2px solid rgba(255, 106, 0, 0.3);
   box-shadow: 0 0 20px rgba(255, 106, 0, 0.1), inset 0 0 15px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(10px);
-}
-
-.solo-next-block-container-small {
-  padding: 8px;
-}
-
-.solo-next-block-container-large {
-  padding: 14px;
 }
 
 .solo-next-cell {
@@ -334,13 +343,13 @@ html, body {
 }
 
 .solo-next-cell-large {
-  width: 24px;
-  height: 24px;
+  width: clamp(16px, 2.5vw, 24px);
+  height: clamp(16px, 2.5vw, 24px);
 }
 
 .solo-next-cell-small {
-  width: 14px;
-  height: 14px;
+  width: clamp(10px, 1.5vw, 14px);
+  height: clamp(10px, 1.5vw, 14px);
 }
 
 .solo-next-cell-empty {
@@ -354,11 +363,11 @@ html, body {
 
 /* ===== CONTROLS HINT ===== */
 .controls-hint {
-  font-size: 11px;
+  font-size: clamp(9px, 1.5vw, 11px);
   color: #999;
   text-align: center;
   line-height: 1.6;
-  padding: 8px;
+  padding: clamp(6px, 1vh, 8px);
   background: rgba(0, 0, 0, 0.2);
   border-radius: 6px;
 }
@@ -366,14 +375,14 @@ html, body {
 /* ===== FLOATING BACK BUTTON ===== */
 .floating-back-btn {
   position: fixed;
-  bottom: 30px;
-  right: 30px;
-  padding: 12px 24px;
+  bottom: clamp(15px, 3vh, 30px);
+  right: clamp(15px, 3vw, 30px);
+  padding: clamp(10px, 1.5vh, 12px) clamp(16px, 2.5vw, 24px);
   background: linear-gradient(135deg, #00ff88, #00ccff);
   border: 2px solid #00ff88;
   border-radius: 8px;
   color: #0a0e27;
-  font-size: 14px;
+  font-size: clamp(11px, 1.5vw, 14px);
   font-weight: bold;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -402,6 +411,7 @@ html, body {
   z-index: 9999;
   backdrop-filter: blur(4px);
   animation: fadeInOverlay 0.3s ease-out;
+  padding: clamp(10px, 2vw, 20px);
 }
 
 @keyframes fadeInOverlay {
@@ -413,10 +423,10 @@ html, body {
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
   border: 3px solid #ff6a00;
   border-radius: 20px;
-  padding: 40px;
-  max-width: 600px;
-  width: 90%;
-  max-height: 80vh;
+  padding: clamp(20px, 4vh, 40px);
+  max-width: 90%;
+  width: clamp(300px, 80vw, 600px);
+  max-height: 85vh;
   overflow-y: auto;
   box-shadow: 0 0 30px rgba(255, 106, 0, 0.5);
   animation: slideIn 0.5s ease-out;
@@ -428,11 +438,11 @@ html, body {
 }
 
 .game-over-title {
-  font-size: 48px;
+  font-size: clamp(28px, 5vw, 48px);
   font-weight: bold;
   color: #ff6a00;
   text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: clamp(20px, 3vh, 30px);
   text-shadow: 0 0 10px rgba(255, 106, 0, 0.5);
 }
 
@@ -442,22 +452,22 @@ html, body {
 }
 
 .waiting-text {
-  font-size: 20px;
+  font-size: clamp(16px, 2.5vw, 20px);
   color: #fff;
-  margin-bottom: 30px;
+  margin-bottom: clamp(20px, 3vh, 30px);
   animation: pulse 1.5s infinite;
 }
 
 /* ===== ACTIVE PLAYERS SECTION ===== */
 .active-players-section {
-  margin-bottom: 30px;
+  margin-bottom: clamp(20px, 3vh, 30px);
 }
 
 .section-title {
   color: #00ff88;
-  margin-bottom: 15px;
+  margin-bottom: clamp(10px, 2vh, 15px);
   text-align: center;
-  font-size: 16px;
+  font-size: clamp(13px, 2vw, 16px);
   font-weight: bold;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -466,35 +476,36 @@ html, body {
 
 .players-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
-  margin-bottom: 15px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: clamp(8px, 1.5vw, 12px);
+  margin-bottom: clamp(10px, 2vh, 15px);
 }
 
 .player-card-small {
   background: rgba(0, 255, 136, 0.15);
   border: 2px solid #00ff88;
   border-radius: 8px;
-  padding: 12px;
+  padding: clamp(8px, 1.5vw, 12px);
   text-align: center;
 }
 
 .player-card-name {
   color: #00ff88;
   font-weight: bold;
-  font-size: 14px;
+  font-size: clamp(12px, 1.5vw, 14px);
   margin-bottom: 5px;
+  word-break: break-word;
 }
 
 .player-card-score {
   color: #fff;
-  font-size: 12px;
+  font-size: clamp(11px, 1.2vw, 12px);
 }
 
 /* ===== FINISHED SECTION ===== */
 .finished-section {
-  margin-bottom: 20px;
-  padding: 20px;
+  margin-bottom: clamp(15px, 2vh, 20px);
+  padding: clamp(12px, 2vh, 20px);
   background: rgba(76, 175, 80, 0.1);
   border: 2px solid rgba(76, 175, 80, 0.3);
   border-radius: 8px;
@@ -503,17 +514,17 @@ html, body {
 .finished-players-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: clamp(6px, 1.5vw, 10px);
   justify-content: center;
   margin-bottom: 0;
 }
 
 .finished-player-badge {
-  padding: 8px 12px;
+  padding: clamp(6px, 1vh, 8px) clamp(8px, 1.5vw, 12px);
   background: rgba(255, 106, 0, 0.2);
   border: 1px solid #ff6a00;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: clamp(10px, 1.2vw, 12px);
   color: #ff6a00;
   font-weight: 600;
   text-transform: uppercase;
@@ -531,31 +542,32 @@ html, body {
 }
 
 .rankings-title {
-  font-size: 28px;
+  font-size: clamp(20px, 3.5vw, 28px);
   color: #ffd700;
   text-align: center;
-  margin-bottom: 25px;
+  margin-bottom: clamp(15px, 2.5vh, 25px);
   text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
 }
 
 .rankings-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 30px;
+  gap: clamp(8px, 1.5vh, 12px);
+  margin-bottom: clamp(20px, 3vh, 30px);
 }
 
 .ranking-item {
   display: flex;
   align-items: center;
-  gap: 15px;
-  padding: 16px 20px;
+  gap: clamp(10px, 2vw, 15px);
+  padding: clamp(12px, 2vh, 16px) clamp(15px, 2.5vw, 20px);
   background: linear-gradient(90deg, rgba(255, 106, 0, 0.15) 0%, rgba(255, 106, 0, 0.05) 100%);
   border: 2px solid rgba(255, 106, 0, 0.3);
   border-radius: 12px;
-  font-size: 18px;
+  font-size: clamp(14px, 2vw, 18px);
   font-weight: 600;
   transition: all 0.3s ease;
+  word-break: break-word;
 }
 
 .ranking-item:hover {
@@ -582,31 +594,34 @@ html, body {
 }
 
 .rank-medal {
-  font-size: 24px;
-  min-width: 30px;
+  font-size: clamp(18px, 2.5vw, 24px);
+  min-width: clamp(25px, 4vw, 30px);
   text-align: center;
 }
 
 .rank-name {
   flex: 1;
   text-align: left;
+  min-width: 0;
+  word-break: break-word;
 }
 
 .rank-score {
   color: #ff6a00;
-  font-size: 20px;
+  font-size: clamp(14px, 2vw, 20px);
   font-weight: bold;
+  white-space: nowrap;
 }
 
 /* ===== BACK TO LOBBY BUTTON ===== */
 .back-to-lobby-btn {
   width: 100%;
-  padding: 14px 20px;
+  padding: clamp(10px, 1.5vh, 14px) clamp(15px, 2.5vw, 20px);
   background: linear-gradient(135deg, #ff6a00 0%, #ff8c42 100%);
   border: none;
   border-radius: 8px;
   color: white;
-  font-size: 16px;
+  font-size: clamp(12px, 1.5vw, 16px);
   font-weight: bold;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -624,22 +639,14 @@ html, body {
 @media (max-width: 1200px) {
   .main-game-layout {
     grid-template-columns: 1fr 1.5fr 1fr;
-    gap: 20px;
-  }
-
-  .game-card-large {
-    max-width: 400px;
-  }
-
-  .game-card-small {
-    max-width: 220px;
+    gap: clamp(12px, 2.5vw, 20px);
   }
 }
 
 @media (max-width: 992px) {
   .main-game-layout {
     grid-template-columns: 1fr;
-    gap: 15px;
+    gap: clamp(10px, 2vh, 15px);
   }
 
   .side-player {
@@ -647,119 +654,36 @@ html, body {
   }
 
   .center-player {
-    margin-bottom: 20px;
+    margin-bottom: clamp(10px, 2vh, 20px);
   }
 
   .game-card-large {
-    max-width: 500px;
-  }
-
-  .floating-back-btn {
-    bottom: 20px;
-    right: 20px;
+    max-width: clamp(280px, 90vw, 500px);
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 600px) {
+  .main-game-layout {
+    gap: clamp(8px, 1.5vh, 10px);
+    padding: clamp(5px, 1vh, 10px);
+  }
+
   .game-card {
-    padding: 16px;
+    gap: clamp(8px, 1.5vh, 12px);
+    padding: clamp(10px, 2vh, 20px);
   }
 
   .game-card-large {
-    padding: 20px;
-    max-width: 100%;
-  }
-
-  .solo-game-cell-large {
-    width: 28px;
-    height: 28px;
-  }
-
-  .solo-game-cell-small {
-    width: 16px;
-    height: 16px;
-  }
-
-  .card-player-name-large {
-    font-size: 18px;
-  }
-
-  .stat-value {
-    font-size: 24px;
+    max-width: 95vw;
   }
 
   .game-over-container {
-    padding: 24px;
-    max-width: 90%;
-  }
-
-  .game-over-title {
-    font-size: 36px;
+    max-width: 95vw;
+    padding: clamp(15px, 3vh, 25px);
   }
 
   .players-grid {
     grid-template-columns: 1fr;
-  }
-
-  .floating-back-btn {
-    bottom: 15px;
-    right: 15px;
-    padding: 10px 18px;
-    font-size: 12px;
-  }
-}
-
-@media (max-width: 480px) {
-  .solo-game-container {
-    padding: 12px;
-  }
-
-  .game-logo {
-    font-size: 24px;
-  }
-
-  .game-card {
-    gap: 12px;
-  }
-
-  .solo-game-cell-large {
-    width: 24px;
-    height: 24px;
-  }
-
-  .solo-game-cell-small {
-    width: 14px;
-    height: 14px;
-  }
-
-  .card-player-name-large {
-    font-size: 16px;
-  }
-
-  .stat-value {
-    font-size: 20px;
-  }
-
-  .stat-item-small .stat-value {
-    font-size: 14px;
-  }
-
-  .game-over-container {
-    padding: 20px;
-    border-radius: 16px;
-  }
-
-  .game-over-title {
-    font-size: 28px;
-    margin-bottom: 16px;
-  }
-
-  .section-title {
-    font-size: 14px;
-  }
-
-  .floating-back-btn {
-    padding: 10px 16px;
-    font-size: 11px;
+    gap: clamp(6px, 1.5vh, 10px);
   }
 }

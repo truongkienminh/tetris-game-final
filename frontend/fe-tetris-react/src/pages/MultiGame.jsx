@@ -24,7 +24,6 @@ const TETRIMINO_SHAPES = {
   L: [[0, 0, 1], [1, 1, 1], [0, 0, 0]],
 };
 
-// ✅ FIXED: Correctly extract URLs
 const getApiUrl = () => {
   return import.meta.env.VITE_API_URL;
 };
@@ -45,17 +44,45 @@ export default function MultiGame() {
   const [rankings, setRankings] = useState(null);
   const [roomGameOver, setRoomGameOver] = useState(false);
   const [isCurrentPlayerGameOver, setIsCurrentPlayerGameOver] = useState(false);
+  const [screenSize, setScreenSize] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
 
   const intervalRef = useRef(null);
   const stompClientRef = useRef(null);
 
-  // ✅ FIXED: Use correct API URL
   const API = axios.create({ baseURL: getApiUrl() });
   API.interceptors.request.use((config) => {
     const token = localStorage.getItem("token");
     if (token) config.headers.Authorization = `Bearer ${token}`;
     return config;
   });
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setScreenSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Determine card size based on screen width
+  const getCardSize = useCallback(() => {
+    if (screenSize.width < 768) return "small";
+    if (screenSize.width < 1200) return "medium";
+    return "large";
+  }, [screenSize.width]);
+
+  // Determine if we should show side players
+  const shouldShowSidePlayers = useCallback(() => {
+    return screenSize.width >= 992;
+  }, [screenSize.width]);
 
   const setupWebSocket = useCallback(() => {
     const token = localStorage.getItem("token");
@@ -337,7 +364,12 @@ export default function MultiGame() {
           </h3>
         </div>
 
-        {renderBoard(state, size)}
+        <div style={{ position: "relative", display: "inline-block" }}>
+          {renderBoard(state, size)}
+          {isPlayerGameOver && !isCurrent && (
+            <div className="game-over-badge pulse">GAME OVER</div>
+          )}
+        </div>
 
         <div className={`card-stats card-stats-${size}`}>
           <div className={`stat-item stat-item-${size}`}>
@@ -359,7 +391,7 @@ export default function MultiGame() {
 
         {isCurrent && !isPlayerGameOver && (
           <div className="controls-hint">
-            <div>⬅️ ROTATE • ↑ ↓ MOVE</div>
+            <div>⬅️ ROTATE • → ↓ MOVE</div>
             <div>↓ TICK • SPACE DROP</div>
           </div>
         )}
@@ -374,7 +406,7 @@ export default function MultiGame() {
     return (
       <div className="game-over-overlay">
         <div className="game-over-container">
-          <h1 className="game-over-title">👻 GAME OVER</h1>
+          <h1 className="game-over-title">💻 GAME OVER</h1>
 
           {!roomGameOver ? (
             <div className="waiting-screen">
@@ -457,6 +489,7 @@ export default function MultiGame() {
   const otherPlayers = players.filter(p => p.id !== currentPlayerId);
   const leftPlayer = otherPlayers[0];
   const rightPlayer = otherPlayers[1];
+  const showSidePlayers = shouldShowSidePlayers();
 
   return (
     <div className="solo-game-container">
@@ -465,7 +498,7 @@ export default function MultiGame() {
       </div>
 
       <div className="main-game-layout">
-        {leftPlayer && (
+        {showSidePlayers && leftPlayer && (
           <div className="side-player left-player">
             {renderGameCard(leftPlayer, false, "small")}
           </div>
@@ -475,12 +508,12 @@ export default function MultiGame() {
           <div className="center-player">
             {renderGameCard(currentPlayer, true, "large")}
             {!isCurrentPlayerGameOver && (
-              <div className="playing-indicator">🔴 PLAYING</div>
+              <div className="playing-indicator">📴 PLAYING</div>
             )}
           </div>
         )}
 
-        {rightPlayer && (
+        {showSidePlayers && rightPlayer && (
           <div className="side-player right-player">
             {renderGameCard(rightPlayer, false, "small")}
           </div>
