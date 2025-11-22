@@ -686,4 +686,211 @@ html, body {
     grid-template-columns: 1fr;
     gap: clamp(6px, 1.5vh, 10px);
   }
+
+  .player-card-small {
+    background: rgba(0, 255, 136, 0.15);
+    border: 2px solid #00ff88;
+    border-radius: 8px;
+    padding: clamp(8px, 1.5vw, 12px);
+    text-align: center;
+  }
+
+  .player-card-name {
+    color: #00ff88;
+    font-weight: bold;
+    font-size: clamp(12px, 1.5vw, 14px);
+    margin-bottom: 5px;
+    word-break: break-word;
+  }
+
+  .player-card-score {
+    color: #fff;
+    font-size: clamp(11px, 1.2vw, 12px);
+  }
+
+  /* ===== FINISHED SECTION ===== */
+  .finished-section {
+    margin-bottom: clamp(15px, 2vh, 20px);
+    padding: clamp(12px, 2vh, 20px);
+    background: rgba(76, 175, 80, 0.1);
+    border: 2px solid rgba(76, 175, 80, 0.3);
+    border-radius: 8px;
+  }
+
+  .finished-players-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: clamp(6px, 1.5vw, 10px);
+    justify-content: center;
+    margin-bottom: 0;
+  }
+
+  .finished-player-badge {
+    padding: clamp(6px, 1vh, 8px) clamp(8px, 1.5vw, 12px);
+    background: rgba(255, 106, 0, 0.2);
+    border: 1px solid #ff6a00;
+    border-radius: 6px;
+    font-size: clamp(10px, 1.2vw, 12px);
+    color: #ff6a00;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* ===== RANKINGS SCREEN ===== */
+  .rankings-screen {
+    animation: fadeIn 0.5s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .rankings-title {
+    font-size: clamp(20px, 3.5vw, 28px);
+    color: #ffd700;
+    text-align: center;
+    margin-bottom: clamp(15px, 2.5vh, 25px);
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+  }
+
+  .rankings-list {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(8px, 1.5vh, 12px);
+    margin-bottom: clamp(20px, 3vh, 30px);
+  }
+
+  .ranking-item {
+    display: flex;
+    align-items: center;
+    gap: clamp(10px, 2vw, 15px);
+    padding: clamp(12px, 2vh, 16px) clamp(15px, 2.5vw, 20px);
+    background: linear-gradient(90deg, rgba(255, 106, 0, 0.15) 0%, rgba(255, 106, 0, 0.05) 100%);
+    border: 2px solid rgba(255, 106, 0, 0.3);
+    border-radius: 12px;
+    font-size: clamp(14px, 2vw, 18px);
+    font-weight: 600;
+    transition: all 0.3s ease;
+    word-break: break-word;
+  }
+
+  .ranking-item:hover {
+    transform: translateX(10px);
+    background: linear-gradient(90deg, rgba(255, 106, 0, 0.25) 0%, rgba(255, 106, 0, 0.1) 100%);
+  }
+
+  .ranking-item.rank-1 {
+    background: linear-gradient(90deg, rgba(255, 215, 0, 0.25) 0%, rgba(255, 215, 0, 0.05) 100%);
+    border-color: rgba(255, 215, 0, 0.5);
+    transform: scale(1.05);
+  }
+
+  .ranking-item.rank-2 {
+    background: linear-gradient(90deg, rgba(192, 192, 192, 0.25) 0%, rgba(192, 192, 192, 0.05) 100%);
+    border-color: rgba(192, 192, 192, 0.5);
+    transform: scale(1.02);
+  }
+
+  .ranking-item.rank-3 {
+    background: linear-gradient(90deg, rgba(205, 127, 50, 0.25) 0%, rgba(205, 127, 50, 0.05) 100%);
+    border-color: rgba(205, 127, 50, 0.5);
+    transform: scale(1.01);
+  }
+
+  .rank-medal {
+    font-size: clamp(18px, 2.5vw, 24px);
+    min-width: clamp(25px, 4vw, 30px);
+    text-align: center;
+  }
+
+  .rank-name {
+    flex: 1;
+    text-align: left;
+    min-width: 0;
+    word-break: break-word;
+  }
+
+  .rank-score {
+    color: #ff6a00;
+    font-size: clamp(14px, 2vw, 20px);
+    font-weight: bold;
+    white-space: nowrap;
+  }
+
+  /* ===== BACK TO LOBBY BUTTON ===== */
+  .back-to-lobby-btn {
+    width: 100%;
+    padding: clamp(10px, 1.5vh, 14px) clamp(15px, 2.5vw, 20px);
+    background: linear-gradient(135deg, #ff6a00 0%, #ff8c42 100%);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-size: clamp(12px, 1.5vw, 16px);
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(255, 106, 0, 0.3);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .back-to-lobby-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 106, 0, 0.5);
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 1200px) {
+    .main-game-layout {
+      grid-template-columns: 1fr 1.5fr 1fr;
+      gap: clamp(12px, 2.5vw, 20px);
+    }
+  }
+
+  @media (max-width: 992px) {
+    .main-game-layout {
+      grid-template-columns: 1fr;
+      gap: clamp(10px, 2vh, 15px);
+    }
+
+    .side-player {
+      display: none;
+    }
+
+    .center-player {
+      margin-bottom: clamp(10px, 2vh, 20px);
+    }
+
+    .game-card-large {
+      max-width: clamp(280px, 90vw, 500px);
+    }
+  }
+
+  @media (max-width: 600px) {
+    .main-game-layout {
+      gap: clamp(8px, 1.5vh, 10px);
+      padding: clamp(5px, 1vh, 10px);
+    }
+
+    .game-card {
+      gap: clamp(8px, 1.5vh, 12px);
+      padding: clamp(10px, 2vh, 20px);
+    }
+
+    .game-card-large {
+      max-width: 95vw;
+    }
+
+    .game-over-container {
+      max-width: 95vw;
+      padding: clamp(15px, 3vh, 25px);
+    }
+
+    .players-grid {
+      grid-template-columns: 1fr;
+      gap: clamp(6px, 1.5vh, 15px);
+    }
+  }
 }
