@@ -132,7 +132,7 @@ export default function Lobby({ currentUser }) {
 
     const stompClient = new Client({
       webSocketFactory: () => socket,
-      connectHeaders: { token },
+      connectHeaders: { token: token },
       reconnectDelay: 5000,
       onConnect: () => {
         console.log("✅ Connected to STOMP WebSocket");

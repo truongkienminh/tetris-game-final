@@ -52,7 +52,7 @@ export default function MultiGame() {
     const socket = new SockJS(`${import.meta.env.VITE_API_URL.replace('/auth', '')}/ws`);
     const client = new Client({
       webSocketFactory: () => socket,
-      connectHeaders: { token },
+      connectHeaders: { token : token },
       reconnectDelay: 5000,
       onConnect: () => {
         console.log("✅ STOMP connected for room:", roomId);
